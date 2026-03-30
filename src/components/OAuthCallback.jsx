@@ -19,6 +19,7 @@ export default function OAuthCallback() {
     const expiresIn = params.get('expires_in')
     const apiDomain = params.get('api_domain')
     const oauthError = params.get('error')
+    console.log('[OAuthCallback] hash params:', { apiDomain, expiresIn, hasToken: !!accessToken, allKeys: [...params.keys()] })
 
     if (oauthError) {
       setError(`Zoho returned an error: ${oauthError}`)
