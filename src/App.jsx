@@ -11,9 +11,10 @@ import CustomerTable from './components/CustomerTable.jsx'
  */
 function RootRoute() {
   const { isAuthenticated } = useZohoAuth()
-  const hasCode = new URLSearchParams(window.location.search).has('code')
+  const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''))
+  const hasToken = hashParams.has('access_token')
 
-  if (hasCode) return <OAuthCallback />
+  if (hasToken) return <OAuthCallback />
   if (isAuthenticated) return <CustomerTable />
   return <Navigate to="/login" replace />
 }

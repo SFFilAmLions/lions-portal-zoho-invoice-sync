@@ -13,10 +13,10 @@ export default function OAuthCallback() {
     if (calledRef.current) return
     calledRef.current = true
 
-    // Read code/error from window.location.search — NOT from React Router,
-    // because Zoho redirects to /?code=ABC#/ (query before hash).
-    const params = new URLSearchParams(window.location.search)
-    const code = params.get('code')
+    // Implicit flow: Zoho redirects to redirect_uri#access_token=TOKEN&expires_in=3600
+    const params = new URLSearchParams(window.location.hash.replace(/^#/, ''))
+    const accessToken = params.get('access_token')
+    const expiresIn = params.get('expires_in')
     const oauthError = params.get('error')
 
     if (oauthError) {
@@ -24,15 +24,15 @@ export default function OAuthCallback() {
       return
     }
 
-    if (!code) {
-      setError('No authorization code found in the redirect URL.')
+    if (!accessToken) {
+      setError('No access token found in the redirect URL.')
       return
     }
 
-    handleCallback(code)
+    handleCallback({ access_token: accessToken, expires_in: expiresIn })
       .then(() => {
         // Strip the ?code= from the URL before navigating
-        window.history.replaceState({}, '', window.location.pathname)
+        window.history.replaceState({}, '', window.location.pathname + '#/')
         navigate('/', { replace: true })
       })
       .catch((e) => {

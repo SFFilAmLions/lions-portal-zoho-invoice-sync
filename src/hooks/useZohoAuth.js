@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { generateCodeVerifier, generateCodeChallenge } from '../lib/pkce.js'
-import { BASE_ACCOUNTS, exchangeCodeForToken, fetchOrganizations } from '../lib/zohoApi.js'
+import { BASE_ACCOUNTS, fetchOrganizations } from '../lib/zohoApi.js'
 
 const SESSION_KEY = 'zoho_session'
 const VERIFIER_KEY = 'zoho_pkce_verifier'
@@ -9,7 +8,7 @@ const SCOPES = [
   'ZohoInvoice.contacts.READ',
   'ZohoInvoice.contacts.UPDATE',
   'ZohoInvoice.settings.READ',
-].join(',')
+].join(' ')
 
 function loadSession() {
   try {
@@ -48,52 +47,31 @@ export function useZohoAuth() {
     return () => clearTimeout(t)
   }, [session])
 
-  const login = useCallback(async (region = 'com') => {
-    const verifier = generateCodeVerifier()
-    const challenge = await generateCodeChallenge(verifier)
-    sessionStorage.setItem(VERIFIER_KEY, JSON.stringify({ verifier, region }))
+  const login = useCallback((region = 'com') => {
+    sessionStorage.setItem(VERIFIER_KEY, JSON.stringify({ region }))
 
     const clientId = import.meta.env.VITE_ZOHO_CLIENT_ID
     const redirectUri = import.meta.env.VITE_ZOHO_REDIRECT_URI
 
     const authUrl = new URL(`${BASE_ACCOUNTS(region)}/oauth/v2/auth`)
-    authUrl.searchParams.set('response_type', 'code')
+    authUrl.searchParams.set('response_type', 'token')
     authUrl.searchParams.set('client_id', clientId)
     authUrl.searchParams.set('scope', SCOPES)
     authUrl.searchParams.set('redirect_uri', redirectUri)
-    authUrl.searchParams.set('access_type', 'online')
-    authUrl.searchParams.set('code_challenge', challenge)
-    authUrl.searchParams.set('code_challenge_method', 'S256')
 
     window.location.href = authUrl.toString()
   }, [])
 
-  const handleCallback = useCallback(async (code) => {
+  const handleCallback = useCallback(async ({ access_token, expires_in }) => {
     const raw = sessionStorage.getItem(VERIFIER_KEY)
-    if (!raw) throw new Error('No PKCE verifier found in sessionStorage')
-    const { verifier, region } = JSON.parse(raw)
+    const { region } = raw ? JSON.parse(raw) : { region: 'com' }
 
-    const clientId = import.meta.env.VITE_ZOHO_CLIENT_ID
-    const redirectUri = import.meta.env.VITE_ZOHO_REDIRECT_URI
-
-    const tokenData = await exchangeCodeForToken({
-      code,
-      codeVerifier: verifier,
-      clientId,
-      redirectUri,
-      region,
-    })
-
-    if (tokenData.error) {
-      throw new Error(`OAuth error: ${tokenData.error} – ${tokenData.error_description ?? ''}`)
-    }
-
-    const orgs = await fetchOrganizations(tokenData.access_token, region)
+    const orgs = await fetchOrganizations(access_token, region)
     if (!orgs.length) throw new Error('No Zoho Invoice organizations found for this account.')
 
     const newSession = {
-      accessToken: tokenData.access_token,
-      expiresAt: Date.now() + (tokenData.expires_in ?? 3600) * 1000,
+      accessToken: access_token,
+      expiresAt: Date.now() + (parseInt(expires_in) || 3600) * 1000,
       region,
       orgId: orgs[0].organization_id,
       orgs,
