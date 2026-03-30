@@ -1,3 +1,10 @@
+## [1.0.2](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/compare/v1.0.1...v1.0.2) (2026-03-30)
+
+
+### Bug Fixes
+
+* use www.zohoapis.com for CORS-enabled API access ([38a19a2](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/commit/38a19a2a7d0db5d383a537b599966c7a8a5abcfa))
+
 ## [1.0.1](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/compare/v1.0.0...v1.0.1) (2026-03-30)
 
 
