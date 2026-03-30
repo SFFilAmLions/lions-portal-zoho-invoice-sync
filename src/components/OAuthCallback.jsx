@@ -17,6 +17,7 @@ export default function OAuthCallback() {
     const params = new URLSearchParams(window.location.hash.replace(/^#/, ''))
     const accessToken = params.get('access_token')
     const expiresIn = params.get('expires_in')
+    const apiDomain = params.get('api_domain')
     const oauthError = params.get('error')
 
     if (oauthError) {
@@ -29,7 +30,7 @@ export default function OAuthCallback() {
       return
     }
 
-    handleCallback({ access_token: accessToken, expires_in: expiresIn })
+    handleCallback({ access_token: accessToken, expires_in: expiresIn, api_domain: apiDomain })
       .then(() => {
         // Strip the ?code= from the URL before navigating
         window.history.replaceState({}, '', window.location.pathname + '#/')

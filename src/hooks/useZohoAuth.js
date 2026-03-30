@@ -62,17 +62,18 @@ export function useZohoAuth() {
     window.location.href = authUrl.toString()
   }, [])
 
-  const handleCallback = useCallback(async ({ access_token, expires_in }) => {
+  const handleCallback = useCallback(async ({ access_token, expires_in, api_domain }) => {
     const raw = sessionStorage.getItem(VERIFIER_KEY)
     const { region } = raw ? JSON.parse(raw) : { region: 'com' }
 
-    const orgs = await fetchOrganizations(access_token, region)
+    const orgs = await fetchOrganizations(access_token, region, api_domain)
     if (!orgs.length) throw new Error('No Zoho Invoice organizations found for this account.')
 
     const newSession = {
       accessToken: access_token,
       expiresAt: Date.now() + (parseInt(expires_in) || 3600) * 1000,
       region,
+      apiDomain: api_domain,
       orgId: orgs[0].organization_id,
       orgs,
     }
@@ -93,6 +94,7 @@ export function useZohoAuth() {
     isAuthenticated: !!session && Date.now() < (session?.expiresAt ?? 0),
     accessToken: session?.accessToken ?? null,
     region: session?.region ?? null,
+    apiDomain: session?.apiDomain ?? null,
     orgId: session?.orgId ?? null,
     orgs: session?.orgs ?? [],
     login,

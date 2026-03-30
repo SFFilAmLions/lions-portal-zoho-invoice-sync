@@ -9,9 +9,10 @@ export const BASE_ACCOUNTS = (region) =>
   `https://accounts.zoho.${region}`
 
 // invoice.zoho.com does not support CORS for browser requests.
-// www.zohoapis.com is the CORS-enabled endpoint for client-based apps.
-export const BASE_INVOICE = (region) =>
-  `https://www.zohoapis.${region}/invoice/v3`
+// Use api_domain from the token response when available (Zoho's canonical regional API host).
+// Falls back to www.zohoapis.com for the given region.
+export const BASE_INVOICE = (region, apiDomain) =>
+  apiDomain ? `${apiDomain}/invoice/v3` : `https://www.zohoapis.${region}/invoice/v3`
 
 /**
  * Exchange an authorization code for an access token.
@@ -45,8 +46,8 @@ export async function exchangeCodeForToken({ code, codeVerifier, clientId, redir
  * Fetch the list of organizations the token has access to.
  * Requires ZohoInvoice.settings.READ scope.
  */
-export async function fetchOrganizations(accessToken, region) {
-  const url = `${BASE_INVOICE(region)}/organizations`
+export async function fetchOrganizations(accessToken, region, apiDomain) {
+  const url = `${BASE_INVOICE(region, apiDomain)}/organizations`
   const res = await fetch(url, {
     headers: { Authorization: `Zoho-oauthtoken ${accessToken}` },
   })
@@ -63,8 +64,8 @@ export async function fetchOrganizations(accessToken, region) {
 /**
  * Fetch a paginated list of contacts (customers).
  */
-export async function fetchContacts(accessToken, orgId, region, { page = 1, perPage = 25 } = {}) {
-  const url = new URL(`${BASE_INVOICE(region)}/contacts`)
+export async function fetchContacts(accessToken, orgId, region, apiDomain, { page = 1, perPage = 25 } = {}) {
+  const url = new URL(`${BASE_INVOICE(region, apiDomain)}/contacts`)
   url.searchParams.set('organization_id', orgId)
   url.searchParams.set('page', page)
   url.searchParams.set('per_page', perPage)
@@ -87,8 +88,8 @@ export async function fetchContacts(accessToken, orgId, region, { page = 1, perP
  * Update a single contact via PUT.
  * Zoho requires the full contact payload — partial updates are not supported.
  */
-export async function updateContact(accessToken, orgId, region, contactId, payload) {
-  const url = `${BASE_INVOICE(region)}/contacts/${contactId}?organization_id=${orgId}`
+export async function updateContact(accessToken, orgId, region, apiDomain, contactId, payload) {
+  const url = `${BASE_INVOICE(region, apiDomain)}/contacts/${contactId}?organization_id=${orgId}`
 
   const res = await fetch(url, {
     method: 'PUT',
