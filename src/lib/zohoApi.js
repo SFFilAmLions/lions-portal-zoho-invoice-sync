@@ -8,8 +8,10 @@
 export const BASE_ACCOUNTS = (region) =>
   `https://accounts.zoho.${region}`
 
+// invoice.zoho.com does not support CORS for browser requests.
+// www.zohoapis.com is the CORS-enabled endpoint for client-based apps.
 export const BASE_INVOICE = (region) =>
-  `https://invoice.zoho.${region}/api/v3`
+  `https://www.zohoapis.${region}/invoice/v3`
 
 /**
  * Exchange an authorization code for an access token.
