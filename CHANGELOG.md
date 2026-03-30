@@ -1,3 +1,10 @@
+## [1.0.3](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/compare/v1.0.2...v1.0.3) (2026-03-30)
+
+
+### Bug Fixes
+
+* use api_domain from token response for CORS-correct API calls ([e650b9d](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/commit/e650b9d202c24456900697fe6f3f23ff83fe3552))
+
 ## [1.0.2](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/compare/v1.0.1...v1.0.2) (2026-03-30)
 
 
