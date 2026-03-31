@@ -19,7 +19,7 @@ jobs:
 
       - uses: jdx/mise-action@v2
 
-      - run: npm ci --legacy-peer-deps
+      - run: npm ci
 
       - name: Lint JS/JSX
         run: npm run lint
@@ -44,7 +44,7 @@ jobs:
 
       - uses: jdx/mise-action@v2
 
-      - run: npm ci --legacy-peer-deps
+      - run: npm ci
 
       - name: Semantic Release
         id: semantic
@@ -65,7 +65,7 @@ jobs:
 
       - uses: jdx/mise-action@v2
 
-      - run: npm ci --legacy-peer-deps
+      - run: npm ci
 
       - name: Build
         env:
