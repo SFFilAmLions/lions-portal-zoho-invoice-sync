@@ -1,3 +1,10 @@
+# [1.1.0](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/compare/v1.0.3...v1.1.0) (2026-03-31)
+
+
+### Features
+
+* add Cloudflare Worker CORS proxy for Zoho Invoice API ([#1](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/1)) ([1bce1d4](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/commit/1bce1d46b110524aafb936ce0c301bc695bd5503))
+
 ## [1.0.3](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/compare/v1.0.2...v1.0.3) (2026-03-30)
 
 
