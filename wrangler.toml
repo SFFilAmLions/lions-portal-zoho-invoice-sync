@@ -1,0 +1,7 @@
+name = "lions-portal-zoho-proxy"
+main = "worker/index.js"
+compatibility_date = "2024-01-01"
+
+# Set ALLOWED_ORIGIN via `wrangler secret put ALLOWED_ORIGIN` or in the
+# Cloudflare dashboard — do NOT commit secrets here.
+# Example: https://sffilamlions.github.io
