@@ -3,51 +3,30 @@
  *
  * Region suffixes: com | eu | in | com.au | jp
  * Australia uses "com.au" — not "au".
+ *
+ * Zoho Invoice does not support browser CORS. All /invoice/v3 calls are routed
+ * through a Cloudflare Worker proxy (VITE_ZOHO_PROXY_URL) that adds the
+ * required CORS headers.  The proxy path is /proxy/{region}/...
  */
 
 export const BASE_ACCOUNTS = (region) =>
   `https://accounts.zoho.${region}`
 
-// invoice.zoho.com does not support CORS for browser requests.
-// Use api_domain from the token response when available (Zoho's canonical regional API host).
-// Falls back to www.zohoapis.com for the given region.
-export const BASE_INVOICE = (region, apiDomain) =>
-  apiDomain ? `${apiDomain}/invoice/v3` : `https://www.zohoapis.${region}/invoice/v3`
+const PROXY_URL = import.meta.env.VITE_ZOHO_PROXY_URL
 
-/**
- * Exchange an authorization code for an access token.
- * Client-based applications have no client_secret.
- */
-export async function exchangeCodeForToken({ code, codeVerifier, clientId, redirectUri, region }) {
-  const url = `${BASE_ACCOUNTS(region)}/oauth/v2/token`
-  const body = new URLSearchParams({
-    grant_type: 'authorization_code',
-    client_id: clientId,
-    redirect_uri: redirectUri,
-    code,
-    code_verifier: codeVerifier,
-  })
-
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body,
-  })
-
-  if (!res.ok) {
-    const text = await res.text()
-    throw new Error(`Token exchange failed (${res.status}): ${text}`)
-  }
-
-  return res.json()
-}
+// Route through the CORS proxy when configured; fall back to direct for local
+// dev without a deployed worker.
+export const BASE_INVOICE = (region) =>
+  PROXY_URL
+    ? `${PROXY_URL}/proxy/${region}`
+    : `https://www.zohoapis.${region}/invoice/v3`
 
 /**
  * Fetch the list of organizations the token has access to.
  * Requires ZohoInvoice.settings.READ scope.
  */
-export async function fetchOrganizations(accessToken, region, apiDomain) {
-  const url = `${BASE_INVOICE(region, apiDomain)}/organizations`
+export async function fetchOrganizations(accessToken, region) {
+  const url = `${BASE_INVOICE(region)}/organizations`
   const res = await fetch(url, {
     headers: { Authorization: `Zoho-oauthtoken ${accessToken}` },
   })
@@ -64,8 +43,8 @@ export async function fetchOrganizations(accessToken, region, apiDomain) {
 /**
  * Fetch a paginated list of contacts (customers).
  */
-export async function fetchContacts(accessToken, orgId, region, apiDomain, { page = 1, perPage = 25 } = {}) {
-  const url = new URL(`${BASE_INVOICE(region, apiDomain)}/contacts`)
+export async function fetchContacts(accessToken, orgId, region, { page = 1, perPage = 25 } = {}) {
+  const url = new URL(`${BASE_INVOICE(region)}/contacts`)
   url.searchParams.set('organization_id', orgId)
   url.searchParams.set('page', page)
   url.searchParams.set('per_page', perPage)
@@ -88,8 +67,8 @@ export async function fetchContacts(accessToken, orgId, region, apiDomain, { pag
  * Update a single contact via PUT.
  * Zoho requires the full contact payload — partial updates are not supported.
  */
-export async function updateContact(accessToken, orgId, region, apiDomain, contactId, payload) {
-  const url = `${BASE_INVOICE(region, apiDomain)}/contacts/${contactId}?organization_id=${orgId}`
+export async function updateContact(accessToken, orgId, region, contactId, payload) {
+  const url = `${BASE_INVOICE(region)}/contacts/${contactId}?organization_id=${orgId}`
 
   const res = await fetch(url, {
     method: 'PUT',

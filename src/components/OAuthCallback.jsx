@@ -17,9 +17,7 @@ export default function OAuthCallback() {
     const params = new URLSearchParams(window.location.hash.replace(/^#/, ''))
     const accessToken = params.get('access_token')
     const expiresIn = params.get('expires_in')
-    const apiDomain = params.get('api_domain')
     const oauthError = params.get('error')
-    console.log('[OAuthCallback] hash params:', { apiDomain, expiresIn, hasToken: !!accessToken, allKeys: [...params.keys()] })
 
     if (oauthError) {
       setError(`Zoho returned an error: ${oauthError}`)
@@ -31,7 +29,7 @@ export default function OAuthCallback() {
       return
     }
 
-    handleCallback({ access_token: accessToken, expires_in: expiresIn, api_domain: apiDomain })
+    handleCallback({ access_token: accessToken, expires_in: expiresIn })
       .then(() => {
         // Strip the ?code= from the URL before navigating
         window.history.replaceState({}, '', window.location.pathname + '#/')
