@@ -3,6 +3,7 @@ name: Release & Deploy
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -18,7 +19,7 @@ jobs:
 
       - uses: jdx/mise-action@v2
 
-      - run: npm ci --legacy-peer-deps
+      - run: npm ci
 
       - name: Lint JS/JSX
         run: npm run lint
@@ -30,6 +31,7 @@ jobs:
         uses: reviewdog/action-actionlint@v1
 
   release:
+    if: github.event_name != 'pull_request'
     needs: lint
     runs-on: ubuntu-latest
     outputs:
@@ -42,7 +44,7 @@ jobs:
 
       - uses: jdx/mise-action@v2
 
-      - run: npm ci --legacy-peer-deps
+      - run: npm ci
 
       - name: Semantic Release
         id: semantic
@@ -51,6 +53,7 @@ jobs:
         run: npx semantic-release
 
   deploy:
+    if: github.event_name != 'pull_request'
     needs: release
     runs-on: ubuntu-latest
 
@@ -62,7 +65,7 @@ jobs:
 
       - uses: jdx/mise-action@v2
 
-      - run: npm ci --legacy-peer-deps
+      - run: npm ci
 
       - name: Build
         env:

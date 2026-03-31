@@ -155,8 +155,12 @@ export default function CustomerTable() {
     <Stack p="lg" maw={1200} mx="auto" gap="md">
       <Group justify="space-between" align="flex-start">
         <Stack gap={4}>
-          <Text fw={700} size="xl">Customers</Text>
-          <Text size="sm" c="dimmed">{orgName}</Text>
+          <Text fw={700} size="xl">
+            Customers
+          </Text>
+          <Text size="sm" c="dimmed">
+            {orgName}
+          </Text>
         </Stack>
         <Group gap="xs" align="center">
           {dirtyCount > 0 && (
@@ -164,10 +168,19 @@ export default function CustomerTable() {
               <Badge color="yellow" variant="light">
                 {dirtyCount} unsaved change{dirtyCount !== 1 ? 's' : ''}
               </Badge>
-              <Button variant="default" size="sm" onClick={() => setDirtyMap({})}>
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => setDirtyMap({})}
+              >
                 Discard
               </Button>
-              <Button size="sm" color="orange" onClick={saveAll} disabled={isFetching}>
+              <Button
+                size="sm"
+                color="orange"
+                onClick={saveAll}
+                disabled={isFetching}
+              >
                 Save All
               </Button>
             </>
@@ -185,7 +198,13 @@ export default function CustomerTable() {
       )}
 
       <div style={{ overflowX: 'auto' }}>
-        <Table striped highlightOnHover withTableBorder withColumnBorders fz="sm">
+        <Table
+          striped
+          highlightOnHover
+          withTableBorder
+          withColumnBorders
+          fz="sm"
+        >
           <Table.Thead>
             {table.getHeaderGroups().map((hg) => (
               <Table.Tr key={hg.id}>
@@ -193,7 +212,10 @@ export default function CustomerTable() {
                   <Table.Th key={header.id} style={{ whiteSpace: 'nowrap' }}>
                     {header.isPlaceholder
                       ? null
-                      : flexRender(header.column.columnDef.header, header.getContext())}
+                      : flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
                   </Table.Th>
                 ))}
               </Table.Tr>
@@ -202,7 +224,12 @@ export default function CustomerTable() {
           <Table.Tbody>
             {isLoading ? (
               <Table.Tr>
-                <Table.Td colSpan={columns.length} ta="center" c="dimmed" py="xl">
+                <Table.Td
+                  colSpan={columns.length}
+                  ta="center"
+                  c="dimmed"
+                  py="xl"
+                >
                   Loading…
                 </Table.Td>
               </Table.Tr>
@@ -211,7 +238,10 @@ export default function CustomerTable() {
                 <Table.Tr key={row.id}>
                   {row.getVisibleCells().map((cell) => (
                     <Table.Td key={cell.id} py={4} px={6}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
                     </Table.Td>
                   ))}
                 </Table.Tr>
@@ -230,7 +260,9 @@ export default function CustomerTable() {
         >
           ← Prev
         </Button>
-        <Text size="sm" c="dimmed">Page {page}</Text>
+        <Text size="sm" c="dimmed">
+          Page {page}
+        </Text>
         <Button
           variant="default"
           size="sm"
