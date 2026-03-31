@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useZohoAuth } from '../hooks/useZohoAuth.js'
+import { Button, Center, Paper, Select, Stack, Text, Title } from '@mantine/core'
 
 const REGIONS = [
   { value: 'com', label: 'Global (US)' },
@@ -27,76 +28,28 @@ export default function LoginPage() {
   }
 
   return (
-    <div style={styles.container}>
-      <div style={styles.card}>
-        <h1 style={styles.title}>Zoho Invoice</h1>
-        <h2 style={styles.subtitle}>Customer Editor</h2>
+    <Center mih="100vh" bg="gray.1">
+      <Paper w={320} p="xl" radius="md" shadow="sm">
+        <Stack gap="sm">
+          <Title order={1} size="h3" c="#e0440e">Zoho Invoice</Title>
+          <Text size="md" c="dimmed" fw={400}>Customer Editor</Text>
 
-        <label style={styles.label} htmlFor="region">
-          Zoho region
-        </label>
-        <select
-          id="region"
-          value={region}
-          onChange={(e) => setRegion(e.target.value)}
-          style={styles.select}
-          disabled={loading}
-        >
-          {REGIONS.map((r) => (
-            <option key={r.value} value={r.value}>
-              {r.label}
-            </option>
-          ))}
-        </select>
+          <Select
+            label="Zoho region"
+            value={region}
+            onChange={setRegion}
+            disabled={loading}
+            data={REGIONS}
+            allowDeselect={false}
+          />
 
-        {error && <p style={styles.error}>{error}</p>}
+          {error && <Text size="sm" c="red">{error}</Text>}
 
-        <button style={styles.button} onClick={handleLogin} disabled={loading}>
-          {loading ? 'Redirecting…' : 'Connect to Zoho Invoice'}
-        </button>
-      </div>
-    </div>
+          <Button mt="xs" fullWidth color="#e0440e" onClick={handleLogin} disabled={loading}>
+            {loading ? 'Redirecting…' : 'Connect to Zoho Invoice'}
+          </Button>
+        </Stack>
+      </Paper>
+    </Center>
   )
-}
-
-const styles = {
-  container: {
-    minHeight: '100vh',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    background: '#f5f5f5',
-    fontFamily: 'system-ui, sans-serif',
-  },
-  card: {
-    background: '#fff',
-    padding: '2.5rem',
-    borderRadius: '8px',
-    boxShadow: '0 2px 12px rgba(0,0,0,.12)',
-    width: '320px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.75rem',
-  },
-  title: { margin: 0, fontSize: '1.5rem', color: '#e0440e' },
-  subtitle: { margin: 0, fontSize: '1rem', color: '#555', fontWeight: 400 },
-  label: { fontSize: '0.875rem', color: '#333', fontWeight: 600 },
-  select: {
-    padding: '0.5rem',
-    borderRadius: '4px',
-    border: '1px solid #ccc',
-    fontSize: '0.9rem',
-  },
-  button: {
-    marginTop: '0.5rem',
-    padding: '0.75rem',
-    background: '#e0440e',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '4px',
-    fontSize: '1rem',
-    cursor: 'pointer',
-    fontWeight: 600,
-  },
-  error: { color: '#c00', fontSize: '0.85rem', margin: 0 },
 }
