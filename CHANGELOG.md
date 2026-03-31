@@ -1,3 +1,10 @@
+## [1.1.1](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/compare/v1.1.0...v1.1.1) (2026-03-31)
+
+
+### Bug Fixes
+
+* pass VITE_ZOHO_PROXY_URL to build; add wrangler devDep; PATH_add node_modules/.bin ([6965934](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/commit/6965934c3fb91a17e9e0b8ec284857339d4b0744))
+
 # [1.1.0](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/compare/v1.0.3...v1.1.0) (2026-03-31)
 
 
