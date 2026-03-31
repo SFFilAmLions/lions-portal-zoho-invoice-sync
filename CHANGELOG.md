@@ -1,3 +1,10 @@
+## [1.1.3](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/compare/v1.1.2...v1.1.3) (2026-03-31)
+
+### Bug Fixes
+
+- pin @eslint/js to v9 to match eslint peer dependency ([6e17aa5](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/commit/6e17aa5aabecb564092189ba477becf1d7f3c67e))
+- use npm ci --legacy-peer-deps in CI to match local install ([52df21c](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/commit/52df21c11b82a4209be9db29ae79e371b4f72d58))
+
 ## [1.1.2](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/compare/v1.1.1...v1.1.2) (2026-03-31)
 
 ### Bug Fixes
