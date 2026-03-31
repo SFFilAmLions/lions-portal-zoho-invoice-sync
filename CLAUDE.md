@@ -1,0 +1,67 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Development Environment
+
+This project uses **Nix flake + direnv** for environment management. `mise.toml` pins Node 22, and `.envrc` activates mise and adds `node_modules/.bin` to PATH.
+
+```bash
+direnv allow        # activate environment
+npm install         # install dependencies
+cp .env.example .env  # configure local env vars
+npm run dev         # start dev server at http://localhost:5173
+```
+
+Required `.env` variables (see `.env.example`):
+
+- `VITE_ZOHO_CLIENT_ID` — from Zoho API Console
+- `VITE_ZOHO_REDIRECT_URI` — redirect URI (e.g. `http://localhost:5173/`)
+- `VITE_ZOHO_REGION` — `com` | `eu` | `in` | `com.au` | `jp`
+- `VITE_ZOHO_PROXY_URL` — Cloudflare Worker URL (optional, needed for API calls)
+
+## Commands
+
+```bash
+npm run dev        # Vite dev server
+npm run build      # production build → dist/
+npm run preview    # preview built dist locally
+npm run deploy     # deploy dist/ to gh-pages branch
+wrangler deploy    # deploy Cloudflare Worker CORS proxy
+```
+
+There are no lint or test commands. Commits are validated against Conventional Commits via `commitlint` (Husky hook).
+
+## Architecture
+
+**Client-only React SPA** deployed to GitHub Pages. No backend — uses a Cloudflare Worker as a CORS proxy for Zoho Invoice API.
+
+### Authentication
+
+OAuth 2.0 **implicit flow** (`response_type=token`). Zoho sends the token in the URL hash after login. `OAuthCallback` parses `window.location.search` (not the hash, since React Router's HashRouter claims the hash) to extract the token, then stores it in `sessionStorage`.
+
+### Routing
+
+`HashRouter` is required for GitHub Pages (no server-side routing). Three routes in `App.jsx`: `/login`, `/?code=...` (OAuth callback), and `/` (main table).
+
+### Data Layer
+
+TanStack Query manages all Zoho API state. Key hooks: `useZohoAuth` (session + token), `useCustomers` (paginated contacts list), `useUpdateContact` (PUT mutation). Stale time is 60 seconds; mutations invalidate `['contacts']` on success.
+
+### CORS Proxy (`worker/index.js`)
+
+Cloudflare Worker at `/proxy/{region}/{...rest}` forwards browser requests to `www.zohoapis.com/invoice/v3` and adds CORS headers. Configured via `ALLOWED_ORIGIN` environment variable (set with `wrangler secret put`). Without this, Zoho API calls are blocked by the browser.
+
+### Editable Table
+
+`CustomerTable.jsx` uses TanStack Table (headless) with `EditableCell` components. Custom fields are discovered dynamically from the first contact. Zoho requires full contact objects on every PUT (no PATCH), so `buildPayload()` in `CustomerTable.jsx` always sends the complete record. A `dirtyMap` tracks unsaved cell changes; only successful saves clear entries.
+
+## Deployment
+
+CI/CD via `.github/workflows/deploy.yml`:
+
+1. `npx semantic-release` — auto-bumps version, generates changelog, creates GitHub release
+2. `npm run build` with injected `VITE_*` secrets
+3. Deploys `dist/` to `gh-pages` branch
+
+Required GitHub secrets: `VITE_ZOHO_CLIENT_ID`, `VITE_ZOHO_REDIRECT_URI`, `VITE_ZOHO_PROXY_URL`.
