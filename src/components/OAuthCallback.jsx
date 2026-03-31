@@ -29,10 +29,12 @@ export default function OAuthCallback() {
       return
     }
 
+    // Clear token from URL now — before any async work — so mid-flight
+    // re-renders don't see access_token in the hash and loop back here.
+    window.history.replaceState({}, '', window.location.pathname + '#/')
+
     handleCallback({ access_token: accessToken, expires_in: expiresIn })
       .then(() => {
-        // Strip the ?code= from the URL before navigating
-        window.history.replaceState({}, '', window.location.pathname + '#/')
         navigate('/', { replace: true })
       })
       .catch((e) => {
