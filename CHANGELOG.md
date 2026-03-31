@@ -1,3 +1,13 @@
+# [1.2.0](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/compare/v1.1.4...v1.2.0) (2026-03-31)
+
+### Bug Fixes
+
+- regenerate lockfile with Mantine dependencies ([#15](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/15)) ([3fdf516](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/commit/3fdf516b80b603ce5908ef0b363972620ebd1b57))
+
+### Features
+
+- integrate Mantine UI framework ([#13](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/13)) ([c8e492b](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/commit/c8e492bbcbc1be00bdce5ea98ff472600edbaf8f)), closes [#2](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/2)
+
 ## [1.1.4](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/compare/v1.1.3...v1.1.4) (2026-03-31)
 
 ### Bug Fixes
