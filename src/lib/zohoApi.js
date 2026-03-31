@@ -9,8 +9,7 @@
  * required CORS headers.  The proxy path is /proxy/{region}/...
  */
 
-export const BASE_ACCOUNTS = (region) =>
-  `https://accounts.zoho.${region}`
+export const BASE_ACCOUNTS = (region) => `https://accounts.zoho.${region}`
 
 const PROXY_URL = import.meta.env.VITE_ZOHO_PROXY_URL
 
@@ -43,7 +42,12 @@ export async function fetchOrganizations(accessToken, region) {
 /**
  * Fetch a paginated list of contacts (customers).
  */
-export async function fetchContacts(accessToken, orgId, region, { page = 1, perPage = 25 } = {}) {
+export async function fetchContacts(
+  accessToken,
+  orgId,
+  region,
+  { page = 1, perPage = 25 } = {}
+) {
   const url = new URL(`${BASE_INVOICE(region)}/contacts`)
   url.searchParams.set('organization_id', orgId)
   url.searchParams.set('page', page)
@@ -60,14 +64,23 @@ export async function fetchContacts(accessToken, orgId, region, { page = 1, perP
   }
 
   const data = await res.json()
-  return { contacts: data.contacts ?? [], page_context: data.page_context ?? {} }
+  return {
+    contacts: data.contacts ?? [],
+    page_context: data.page_context ?? {},
+  }
 }
 
 /**
  * Update a single contact via PUT.
  * Zoho requires the full contact payload — partial updates are not supported.
  */
-export async function updateContact(accessToken, orgId, region, contactId, payload) {
+export async function updateContact(
+  accessToken,
+  orgId,
+  region,
+  contactId,
+  payload
+) {
   const url = `${BASE_INVOICE(region)}/contacts/${contactId}?organization_id=${orgId}`
 
   const res = await fetch(url, {
@@ -81,7 +94,9 @@ export async function updateContact(accessToken, orgId, region, contactId, paylo
 
   if (!res.ok) {
     const text = await res.text()
-    throw new Error(`updateContact(${contactId}) failed (${res.status}): ${text}`)
+    throw new Error(
+      `updateContact(${contactId}) failed (${res.status}): ${text}`
+    )
   }
 
   return res.json()

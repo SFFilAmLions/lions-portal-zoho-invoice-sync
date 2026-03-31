@@ -11,7 +11,26 @@ permissions:
   pull-requests: write
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: jdx/mise-action@v2
+
+      - run: npm ci
+
+      - name: Lint JS/JSX
+        run: npm run lint
+
+      - name: Check formatting
+        run: npx prettier --check .
+
+      - name: Lint GitHub Actions workflows
+        uses: reviewdog/action-actionlint@v1
+
   release:
+    needs: lint
     runs-on: ubuntu-latest
     outputs:
       new-release: ${{ steps.semantic.outputs.new_release_published }}

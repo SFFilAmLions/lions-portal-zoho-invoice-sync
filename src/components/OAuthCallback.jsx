@@ -48,7 +48,10 @@ export default function OAuthCallback() {
         <div style={styles.card}>
           <h2 style={styles.title}>Authentication Failed</h2>
           <p style={styles.error}>{error}</p>
-          <button style={styles.button} onClick={() => navigate('/login', { replace: true })}>
+          <button
+            style={styles.button}
+            onClick={() => navigate('/login', { replace: true })}
+          >
             Back to Login
           </button>
         </div>

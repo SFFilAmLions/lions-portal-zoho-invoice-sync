@@ -29,7 +29,12 @@ export default {
     // Path format: /proxy/{region}/{...rest}
     const match = url.pathname.match(/^\/proxy\/([^/]+)\/(.*)$/)
     if (!match) {
-      return corsResponse('Bad Request: path must be /proxy/{region}/...', 400, origin, env)
+      return corsResponse(
+        'Bad Request: path must be /proxy/{region}/...',
+        400,
+        origin,
+        env
+      )
     }
 
     const [, region, rest] = match
@@ -47,11 +52,22 @@ export default {
     try {
       zohoRes = await fetch(upstream)
     } catch (err) {
-      return corsResponse(`Upstream fetch failed: ${err.message}`, 502, origin, env)
+      return corsResponse(
+        `Upstream fetch failed: ${err.message}`,
+        502,
+        origin,
+        env
+      )
     }
 
     const body = await zohoRes.arrayBuffer()
-    return corsResponse(body, zohoRes.status, origin, env, zohoRes.headers.get('Content-Type'))
+    return corsResponse(
+      body,
+      zohoRes.status,
+      origin,
+      env,
+      zohoRes.headers.get('Content-Type')
+    )
   },
 }
 
@@ -64,7 +80,12 @@ function forwardHeaders(incoming) {
   const out = new Headers()
   for (const [key, value] of incoming.entries()) {
     const lower = key.toLowerCase()
-    if (['host', 'origin', 'referer', 'cf-connecting-ip', 'cf-ray'].includes(lower)) continue
+    if (
+      ['host', 'origin', 'referer', 'cf-connecting-ip', 'cf-ray'].includes(
+        lower
+      )
+    )
+      continue
     out.set(key, value)
   }
   return out
@@ -74,7 +95,12 @@ function allowedOrigin(origin, env) {
   const allowed = env.ALLOWED_ORIGIN ?? '*'
   if (allowed === '*') return '*'
   // Support comma-separated list for multiple origins
-  return allowed.split(',').map((s) => s.trim()).includes(origin) ? origin : null
+  return allowed
+    .split(',')
+    .map((s) => s.trim())
+    .includes(origin)
+    ? origin
+    : null
 }
 
 function corsResponse(body, status, origin, env, contentType) {

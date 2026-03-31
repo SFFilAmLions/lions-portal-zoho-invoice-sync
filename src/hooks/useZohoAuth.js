@@ -67,7 +67,8 @@ export function useZohoAuth() {
     const { region } = raw ? JSON.parse(raw) : { region: 'com' }
 
     const orgs = await fetchOrganizations(access_token, region)
-    if (!orgs.length) throw new Error('No Zoho Invoice organizations found for this account.')
+    if (!orgs.length)
+      throw new Error('No Zoho Invoice organizations found for this account.')
 
     const newSession = {
       accessToken: access_token,
