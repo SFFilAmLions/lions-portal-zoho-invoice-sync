@@ -15,7 +15,10 @@ export default function EditableCell({ getValue, row, column, table }) {
   }
 
   // Sync if the underlying data changes (e.g. after a save + re-fetch)
-  if (initialValue !== (table.options.meta?.getCommitted?.(contactId, columnId) ?? initialValue)) {
+  if (
+    initialValue !==
+    (table.options.meta?.getCommitted?.(contactId, columnId) ?? initialValue)
+  ) {
     // no-op; keeping local value intentional until user blurs
   }
 

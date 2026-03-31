@@ -46,7 +46,10 @@ function buildPayload(original, dirtyFields) {
 export default function CustomerTable() {
   const { logout, orgs, orgId } = useZohoAuth()
   const [page, setPage] = useState(1)
-  const { data, isLoading, isFetching, isError, error } = useCustomers({ page, perPage: PER_PAGE })
+  const { data, isLoading, isFetching, isError, error } = useCustomers({
+    page,
+    perPage: PER_PAGE,
+  })
   const { mutateAsync: saveContact } = useUpdateContact()
 
   // dirtyMap: { [contactId]: { [columnId]: newValue } }
@@ -61,12 +64,16 @@ export default function CustomerTable() {
 
   const isDirty = useCallback(
     (contactId, columnId) => dirtyMap[contactId]?.[columnId] !== undefined,
-    [dirtyMap],
+    [dirtyMap]
   )
 
   const dirtyCount = useMemo(
-    () => Object.values(dirtyMap).reduce((acc, fields) => acc + Object.keys(fields).length, 0),
-    [dirtyMap],
+    () =>
+      Object.values(dirtyMap).reduce(
+        (acc, fields) => acc + Object.keys(fields).length,
+        0
+      ),
+    [dirtyMap]
   )
 
   const contacts = data?.contacts ?? []
@@ -110,7 +117,7 @@ export default function CustomerTable() {
       },
       ...customFieldColumns,
     ],
-    [customFieldColumns],
+    [customFieldColumns]
   )
 
   const table = useReactTable({
@@ -129,8 +136,11 @@ export default function CustomerTable() {
       entries.map(([contactId, dirtyFields]) => {
         const original = contacts.find((c) => c.contact_id === contactId)
         if (!original) return Promise.resolve()
-        return saveContact({ contactId, payload: buildPayload(original, dirtyFields) })
-      }),
+        return saveContact({
+          contactId,
+          payload: buildPayload(original, dirtyFields),
+        })
+      })
     )
 
     // Clear only successful saves from dirtyMap
@@ -144,7 +154,9 @@ export default function CustomerTable() {
 
     const failed = results.filter((r) => r.status === 'rejected')
     if (failed.length) {
-      alert(`${failed.length} save(s) failed:\n${failed.map((f) => f.reason?.message).join('\n')}`)
+      alert(
+        `${failed.length} save(s) failed:\n${failed.map((f) => f.reason?.message).join('\n')}`
+      )
     }
   }
 
@@ -160,11 +172,20 @@ export default function CustomerTable() {
         <div style={styles.actions}>
           {dirtyCount > 0 && (
             <>
-              <span style={styles.dirtyBadge}>{dirtyCount} unsaved change{dirtyCount !== 1 ? 's' : ''}</span>
-              <button style={styles.btnSecondary} onClick={() => setDirtyMap({})}>
+              <span style={styles.dirtyBadge}>
+                {dirtyCount} unsaved change{dirtyCount !== 1 ? 's' : ''}
+              </span>
+              <button
+                style={styles.btnSecondary}
+                onClick={() => setDirtyMap({})}
+              >
                 Discard
               </button>
-              <button style={styles.btnPrimary} onClick={saveAll} disabled={isFetching}>
+              <button
+                style={styles.btnPrimary}
+                onClick={saveAll}
+                disabled={isFetching}
+              >
                 Save All
               </button>
             </>
@@ -186,7 +207,10 @@ export default function CustomerTable() {
                   <th key={header.id} style={styles.th}>
                     {header.isPlaceholder
                       ? null
-                      : flexRender(header.column.columnDef.header, header.getContext())}
+                      : flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
                   </th>
                 ))}
               </tr>
@@ -204,7 +228,10 @@ export default function CustomerTable() {
                 <tr key={row.id} style={styles.tr}>
                   {row.getVisibleCells().map((cell) => (
                     <td key={cell.id} style={styles.td}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
                     </td>
                   ))}
                 </tr>
@@ -236,23 +263,87 @@ export default function CustomerTable() {
 }
 
 const styles = {
-  page: { fontFamily: 'system-ui, sans-serif', padding: '1.5rem', maxWidth: '1200px', margin: '0 auto' },
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' },
+  page: {
+    fontFamily: 'system-ui, sans-serif',
+    padding: '1.5rem',
+    maxWidth: '1200px',
+    margin: '0 auto',
+  },
+  header: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: '1rem',
+  },
   title: { margin: 0, fontSize: '1.5rem', color: '#111' },
   org: { fontSize: '0.85rem', color: '#666' },
   actions: { display: 'flex', gap: '0.5rem', alignItems: 'center' },
-  dirtyBadge: { fontSize: '0.8rem', background: '#fef3c7', color: '#92400e', padding: '3px 8px', borderRadius: '9999px', fontWeight: 600 },
-  btnPrimary: { padding: '0.45rem 1rem', background: '#e0440e', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 600 },
-  btnSecondary: { padding: '0.45rem 1rem', background: '#e5e7eb', color: '#374151', border: 'none', borderRadius: '4px', cursor: 'pointer' },
-  btnLogout: { padding: '0.45rem 1rem', background: 'transparent', color: '#6b7280', border: '1px solid #d1d5db', borderRadius: '4px', cursor: 'pointer' },
-  btnPage: { padding: '0.4rem 0.9rem', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: '4px', cursor: 'pointer' },
+  dirtyBadge: {
+    fontSize: '0.8rem',
+    background: '#fef3c7',
+    color: '#92400e',
+    padding: '3px 8px',
+    borderRadius: '9999px',
+    fontWeight: 600,
+  },
+  btnPrimary: {
+    padding: '0.45rem 1rem',
+    background: '#e0440e',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontWeight: 600,
+  },
+  btnSecondary: {
+    padding: '0.45rem 1rem',
+    background: '#e5e7eb',
+    color: '#374151',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+  },
+  btnLogout: {
+    padding: '0.45rem 1rem',
+    background: 'transparent',
+    color: '#6b7280',
+    border: '1px solid #d1d5db',
+    borderRadius: '4px',
+    cursor: 'pointer',
+  },
+  btnPage: {
+    padding: '0.4rem 0.9rem',
+    background: '#f3f4f6',
+    border: '1px solid #d1d5db',
+    borderRadius: '4px',
+    cursor: 'pointer',
+  },
   tableWrapper: { overflowX: 'auto' },
   table: { width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' },
-  th: { textAlign: 'left', padding: '8px 10px', background: '#f9fafb', borderBottom: '2px solid #e5e7eb', fontWeight: 600, color: '#374151', whiteSpace: 'nowrap' },
+  th: {
+    textAlign: 'left',
+    padding: '8px 10px',
+    background: '#f9fafb',
+    borderBottom: '2px solid #e5e7eb',
+    fontWeight: 600,
+    color: '#374151',
+    whiteSpace: 'nowrap',
+  },
   tr: { borderBottom: '1px solid #f3f4f6' },
   td: { padding: '4px 6px', verticalAlign: 'middle' },
   center: { padding: '2rem', textAlign: 'center', color: '#888' },
-  pagination: { display: 'flex', gap: '0.75rem', alignItems: 'center', marginTop: '1rem' },
+  pagination: {
+    display: 'flex',
+    gap: '0.75rem',
+    alignItems: 'center',
+    marginTop: '1rem',
+  },
   pageInfo: { fontSize: '0.875rem', color: '#555' },
-  error: { color: '#c00', background: '#fff0f0', padding: '0.75rem', borderRadius: '4px', marginBottom: '1rem' },
+  error: {
+    color: '#c00',
+    background: '#fff0f0',
+    padding: '0.75rem',
+    borderRadius: '4px',
+    marginBottom: '1rem',
+  },
 }

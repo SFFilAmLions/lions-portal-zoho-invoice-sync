@@ -8,12 +8,12 @@ A fully client-side React SPA (hosted on GitHub Pages) that authenticates with Z
 
 Go to <https://api-console.zoho.com> → **Add Client** → **Client-based Applications** and fill in the fields as follows:
 
-| Field | Value |
-|---|---|
-| **Client Name** | `lions-portal-zoho-invoice-sync` (or any name you like) |
-| **Homepage URL** | `https://sffilamlions.github.io/lions-portal-zoho-invoice-sync/` |
+| Field                        | Value                                                            |
+| ---------------------------- | ---------------------------------------------------------------- |
+| **Client Name**              | `lions-portal-zoho-invoice-sync` (or any name you like)          |
+| **Homepage URL**             | `https://sffilamlions.github.io/lions-portal-zoho-invoice-sync/` |
 | **Authorized Redirect URIs** | `https://sffilamlions.github.io/lions-portal-zoho-invoice-sync/` |
-| **JavaScript Domain** | `https://sffilamlions.github.io` |
+| **JavaScript Domain**        | `https://sffilamlions.github.io`                                 |
 
 **Field notes:**
 
@@ -31,9 +31,9 @@ For local dev, add a second Authorized Redirect URI: `http://localhost:5173/`
 
 Add these secrets under **Settings → Secrets and variables → Actions**:
 
-| Secret | Value |
-|---|---|
-| `VITE_ZOHO_CLIENT_ID` | Client ID from Zoho API Console |
+| Secret                   | Value                                                            |
+| ------------------------ | ---------------------------------------------------------------- |
+| `VITE_ZOHO_CLIENT_ID`    | Client ID from Zoho API Console                                  |
 | `VITE_ZOHO_REDIRECT_URI` | `https://sffilamlions.github.io/lions-portal-zoho-invoice-sync/` |
 
 ---

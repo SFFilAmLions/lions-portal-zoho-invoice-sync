@@ -11,7 +11,26 @@ permissions:
   pull-requests: write
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: jdx/mise-action@v2
+
+      - run: npm ci
+
+      - name: Lint JS/JSX
+        run: npm run lint
+
+      - name: Check formatting
+        run: npx prettier --check .
+
+      - name: Lint GitHub Actions workflows
+        uses: reviewdog/action-actionlint@v1
+
   release:
+    needs: lint
     runs-on: ubuntu-latest
     outputs:
       new-release: ${{ steps.semantic.outputs.new_release_published }}
@@ -58,3 +77,8 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist
           enable_jekyll: false
+
+      - name: Deploy Cloudflare Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: wrangler deploy
