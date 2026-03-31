@@ -49,6 +49,7 @@ jobs:
         env:
           VITE_ZOHO_CLIENT_ID: ${{ secrets.VITE_ZOHO_CLIENT_ID }}
           VITE_ZOHO_REDIRECT_URI: ${{ secrets.VITE_ZOHO_REDIRECT_URI }}
+          VITE_ZOHO_PROXY_URL: ${{ secrets.VITE_ZOHO_PROXY_URL }}
         run: npm run build
 
       - name: Deploy to GitHub Pages
