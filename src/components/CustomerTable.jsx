@@ -4,6 +4,7 @@ import {
   getCoreRowModel,
   flexRender,
 } from '@tanstack/react-table'
+import { Alert, Badge, Button, Group, Stack, Table, Text } from '@mantine/core'
 import { useZohoAuth } from '../hooks/useZohoAuth.js'
 import { useCustomers, useUpdateContact } from '../hooks/useCustomers.js'
 import EditableCell from './EditableCell.jsx'
@@ -94,21 +95,9 @@ export default function CustomerTable() {
 
   const columns = useMemo(
     () => [
-      {
-        accessorKey: 'contact_name',
-        header: 'Name',
-        cell: EditableCell,
-      },
-      {
-        accessorKey: 'email',
-        header: 'Email',
-        cell: EditableCell,
-      },
-      {
-        accessorKey: 'phone',
-        header: 'Phone',
-        cell: EditableCell,
-      },
+      { accessorKey: 'contact_name', header: 'Name', cell: EditableCell },
+      { accessorKey: 'email', header: 'Email', cell: EditableCell },
+      { accessorKey: 'phone', header: 'Phone', cell: EditableCell },
       {
         accessorFn: (row) => row.billing_address?.address ?? '',
         id: 'address',
@@ -163,187 +152,94 @@ export default function CustomerTable() {
   const orgName = orgs.find((o) => o.organization_id === orgId)?.name ?? orgId
 
   return (
-    <div style={styles.page}>
-      <header style={styles.header}>
-        <div>
-          <h1 style={styles.title}>Customers</h1>
-          <span style={styles.org}>{orgName}</span>
-        </div>
-        <div style={styles.actions}>
+    <Stack p="lg" maw={1200} mx="auto" gap="md">
+      <Group justify="space-between" align="flex-start">
+        <Stack gap={4}>
+          <Text fw={700} size="xl">Customers</Text>
+          <Text size="sm" c="dimmed">{orgName}</Text>
+        </Stack>
+        <Group gap="xs" align="center">
           {dirtyCount > 0 && (
             <>
-              <span style={styles.dirtyBadge}>
+              <Badge color="yellow" variant="light">
                 {dirtyCount} unsaved change{dirtyCount !== 1 ? 's' : ''}
-              </span>
-              <button
-                style={styles.btnSecondary}
-                onClick={() => setDirtyMap({})}
-              >
+              </Badge>
+              <Button variant="default" size="sm" onClick={() => setDirtyMap({})}>
                 Discard
-              </button>
-              <button
-                style={styles.btnPrimary}
-                onClick={saveAll}
-                disabled={isFetching}
-              >
+              </Button>
+              <Button size="sm" color="orange" onClick={saveAll} disabled={isFetching}>
                 Save All
-              </button>
+              </Button>
             </>
           )}
-          <button style={styles.btnLogout} onClick={logout}>
+          <Button variant="subtle" color="gray" size="sm" onClick={logout}>
             Log out
-          </button>
-        </div>
-      </header>
+          </Button>
+        </Group>
+      </Group>
 
-      {isError && <p style={styles.error}>Error: {error?.message}</p>}
+      {isError && (
+        <Alert color="red" title="Error">
+          {error?.message}
+        </Alert>
+      )}
 
-      <div style={styles.tableWrapper}>
-        <table style={styles.table}>
-          <thead>
+      <div style={{ overflowX: 'auto' }}>
+        <Table striped highlightOnHover withTableBorder withColumnBorders fz="sm">
+          <Table.Thead>
             {table.getHeaderGroups().map((hg) => (
-              <tr key={hg.id}>
+              <Table.Tr key={hg.id}>
                 {hg.headers.map((header) => (
-                  <th key={header.id} style={styles.th}>
+                  <Table.Th key={header.id} style={{ whiteSpace: 'nowrap' }}>
                     {header.isPlaceholder
                       ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
-                  </th>
+                      : flexRender(header.column.columnDef.header, header.getContext())}
+                  </Table.Th>
                 ))}
-              </tr>
+              </Table.Tr>
             ))}
-          </thead>
-          <tbody>
+          </Table.Thead>
+          <Table.Tbody>
             {isLoading ? (
-              <tr>
-                <td colSpan={columns.length} style={styles.center}>
+              <Table.Tr>
+                <Table.Td colSpan={columns.length} ta="center" c="dimmed" py="xl">
                   Loading…
-                </td>
-              </tr>
+                </Table.Td>
+              </Table.Tr>
             ) : (
               table.getRowModel().rows.map((row) => (
-                <tr key={row.id} style={styles.tr}>
+                <Table.Tr key={row.id}>
                   {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id} style={styles.td}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </td>
+                    <Table.Td key={cell.id} py={4} px={6}>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </Table.Td>
                   ))}
-                </tr>
+                </Table.Tr>
               ))
             )}
-          </tbody>
-        </table>
+          </Table.Tbody>
+        </Table>
       </div>
 
-      <div style={styles.pagination}>
-        <button
-          style={styles.btnPage}
+      <Group gap="sm" align="center">
+        <Button
+          variant="default"
+          size="sm"
           onClick={() => setPage((p) => Math.max(1, p - 1))}
           disabled={page === 1 || isFetching}
         >
           ← Prev
-        </button>
-        <span style={styles.pageInfo}>Page {page}</span>
-        <button
-          style={styles.btnPage}
+        </Button>
+        <Text size="sm" c="dimmed">Page {page}</Text>
+        <Button
+          variant="default"
+          size="sm"
           onClick={() => setPage((p) => p + 1)}
           disabled={!pageContext.has_more_page || isFetching}
         >
           Next →
-        </button>
-      </div>
-    </div>
+        </Button>
+      </Group>
+    </Stack>
   )
-}
-
-const styles = {
-  page: {
-    fontFamily: 'system-ui, sans-serif',
-    padding: '1.5rem',
-    maxWidth: '1200px',
-    margin: '0 auto',
-  },
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: '1rem',
-  },
-  title: { margin: 0, fontSize: '1.5rem', color: '#111' },
-  org: { fontSize: '0.85rem', color: '#666' },
-  actions: { display: 'flex', gap: '0.5rem', alignItems: 'center' },
-  dirtyBadge: {
-    fontSize: '0.8rem',
-    background: '#fef3c7',
-    color: '#92400e',
-    padding: '3px 8px',
-    borderRadius: '9999px',
-    fontWeight: 600,
-  },
-  btnPrimary: {
-    padding: '0.45rem 1rem',
-    background: '#e0440e',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontWeight: 600,
-  },
-  btnSecondary: {
-    padding: '0.45rem 1rem',
-    background: '#e5e7eb',
-    color: '#374151',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-  },
-  btnLogout: {
-    padding: '0.45rem 1rem',
-    background: 'transparent',
-    color: '#6b7280',
-    border: '1px solid #d1d5db',
-    borderRadius: '4px',
-    cursor: 'pointer',
-  },
-  btnPage: {
-    padding: '0.4rem 0.9rem',
-    background: '#f3f4f6',
-    border: '1px solid #d1d5db',
-    borderRadius: '4px',
-    cursor: 'pointer',
-  },
-  tableWrapper: { overflowX: 'auto' },
-  table: { width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' },
-  th: {
-    textAlign: 'left',
-    padding: '8px 10px',
-    background: '#f9fafb',
-    borderBottom: '2px solid #e5e7eb',
-    fontWeight: 600,
-    color: '#374151',
-    whiteSpace: 'nowrap',
-  },
-  tr: { borderBottom: '1px solid #f3f4f6' },
-  td: { padding: '4px 6px', verticalAlign: 'middle' },
-  center: { padding: '2rem', textAlign: 'center', color: '#888' },
-  pagination: {
-    display: 'flex',
-    gap: '0.75rem',
-    alignItems: 'center',
-    marginTop: '1rem',
-  },
-  pageInfo: { fontSize: '0.875rem', color: '#555' },
-  error: {
-    color: '#c00',
-    background: '#fff0f0',
-    padding: '0.75rem',
-    borderRadius: '4px',
-    marginBottom: '1rem',
-  },
 }
