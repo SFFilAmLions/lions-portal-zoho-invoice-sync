@@ -1,3 +1,9 @@
+## [1.1.4](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/compare/v1.1.3...v1.1.4) (2026-03-31)
+
+### Bug Fixes
+
+- use npx wrangler deploy so PATH includes node_modules/.bin ([0c6776c](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/commit/0c6776c3cc89539623bf8bca7ade57ddbef0ded0))
+
 ## [1.1.3](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/compare/v1.1.2...v1.1.3) (2026-03-31)
 
 ### Bug Fixes
