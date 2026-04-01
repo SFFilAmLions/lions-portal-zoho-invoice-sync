@@ -15,13 +15,54 @@ import {
   Text,
 } from '@mantine/core'
 import { useDisclosure } from '@mantine/hooks'
-import { useZohoAuth } from '../hooks/useZohoAuth.js'
+import { useZohoAuth } from '../hooks/useZohoAuth.jsx'
 import { useCustomers, useUpdateContact } from '../hooks/useCustomers.js'
 import EditableCell from './EditableCell.jsx'
 import CommitModal from './CommitModal.jsx'
 
 const PAGE_SIZE_OPTIONS = ['10', '25', '50', '100']
 const DEFAULT_PAGE_SIZE = '25'
+
+const COOKIE_NAME = 'lions-col-types'
+const COLUMN_TYPES = [
+  'text',
+  'email',
+  'phone',
+  'enum',
+  'url',
+  'boolean',
+  'date',
+]
+
+/** Auto-type a custom field based on its Zoho data_type */
+function defaultTypeForCustomField(cf) {
+  if (cf.data_type === 'dropdown') return 'enum'
+  return 'text'
+}
+
+// --- Cookie helpers (no external library) ---
+
+function readColTypesCookie() {
+  try {
+    const match = document.cookie
+      .split(';')
+      .map((c) => c.trim())
+      .find((c) => c.startsWith(COOKIE_NAME + '='))
+    if (!match) return {}
+    return JSON.parse(decodeURIComponent(match.slice(COOKIE_NAME.length + 1)))
+  } catch {
+    return {}
+  }
+}
+
+function writeColTypesCookie(overrides) {
+  const value = encodeURIComponent(JSON.stringify(overrides))
+  // 1-year expiry
+  const expires = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toUTCString()
+  document.cookie = `${COOKIE_NAME}=${value}; expires=${expires}; path=/; SameSite=Lax`
+}
+
+// ---
 
 function getStoredPageSize() {
   try {
@@ -72,6 +113,41 @@ function buildPayload(original, dirtyFields) {
   return payload
 }
 
+/** Small header component that renders the column name + type override badge */
+function ColumnHeader({ label, columnId, type, onTypeChange }) {
+  return (
+    <Group gap={4} align="center" wrap="nowrap">
+      <Text size="sm" fw={600} style={{ whiteSpace: 'nowrap' }}>
+        {label}
+      </Text>
+      <Select
+        size="xs"
+        w={70}
+        value={type}
+        onChange={(val) => val && onTypeChange(columnId, val)}
+        data={COLUMN_TYPES}
+        allowDeselect={false}
+        comboboxProps={{ withinPortal: true }}
+        styles={{
+          input: {
+            fontSize: '10px',
+            paddingLeft: 4,
+            paddingRight: 20,
+            height: 20,
+            minHeight: 20,
+          },
+          section: { width: 16 },
+        }}
+        renderOption={({ option }) => (
+          <Badge size="xs" variant="light" color="gray">
+            {option.value}
+          </Badge>
+        )}
+      />
+    </Group>
+  )
+}
+
 export default function CustomerTable() {
   const { logout, orgs, orgId } = useZohoAuth()
   const [page, setPage] = useState(1)
@@ -88,9 +164,15 @@ export default function CustomerTable() {
   // dirtyMap: { [contactId]: { [columnId]: newValue } }
   const [dirtyMap, setDirtyMap] = useState({})
 
+  // validationErrors: { [contactId]: { [columnId]: string } }
+  const [validationErrors, setValidationErrors] = useState({})
+
   // CommitModal open state
   const [modalOpened, { open: openModal, close: closeModal }] =
     useDisclosure(false)
+
+  // Column type overrides: { [columnId]: type } — seeded from cookie on mount
+  const [colTypeOverrides, setColTypeOverrides] = useState(readColTypesCookie)
 
   const markDirty = useCallback((contactId, columnId, value) => {
     setDirtyMap((prev) => ({
@@ -113,6 +195,27 @@ export default function CustomerTable() {
     })
   }, [])
 
+  const setValidationError = useCallback((contactId, columnId, error) => {
+    setValidationErrors((prev) => ({
+      ...prev,
+      [contactId]: { ...(prev[contactId] ?? {}), [columnId]: error },
+    }))
+  }, [])
+
+  const clearValidationError = useCallback((contactId, columnId) => {
+    setValidationErrors((prev) => {
+      const contactFields = { ...(prev[contactId] ?? {}) }
+      delete contactFields[columnId]
+      const next = { ...prev }
+      if (Object.keys(contactFields).length === 0) {
+        delete next[contactId]
+      } else {
+        next[contactId] = contactFields
+      }
+      return next
+    })
+  }, [])
+
   const isDirty = useCallback(
     (contactId, columnId) => dirtyMap[contactId]?.[columnId] !== undefined,
     [dirtyMap]
@@ -121,6 +224,14 @@ export default function CustomerTable() {
   const getDirtyValue = useCallback(
     (contactId, columnId) => dirtyMap[contactId]?.[columnId],
     [dirtyMap]
+  )
+
+  const hasValidationErrors = useMemo(
+    () =>
+      Object.values(validationErrors).some(
+        (fields) => Object.keys(fields).length > 0
+      ),
+    [validationErrors]
   )
 
   const dirtyCount = useMemo(
@@ -145,24 +256,82 @@ export default function CustomerTable() {
       id: cf.api_name,
       header: cf.label ?? cf.api_name,
       cell: EditableCell,
+      meta: { defaultType: defaultTypeForCustomField(cf) },
     }))
   }, [contacts])
 
+  /** Resolve effective type for a column (override wins over default) */
+  const getColType = useCallback(
+    (columnId, defaultType) =>
+      colTypeOverrides[columnId] ?? defaultType ?? 'text',
+    [colTypeOverrides]
+  )
+
+  /** Handle user changing a column type — persist to cookie */
+  const handleTypeChange = useCallback((columnId, newType) => {
+    setColTypeOverrides((prev) => {
+      const next = { ...prev, [columnId]: newType }
+      writeColTypesCookie(next)
+      return next
+    })
+  }, [])
+
   const columns = useMemo(
     () => [
-      { accessorKey: 'first_name', header: 'First Name', cell: EditableCell },
-      { accessorKey: 'last_name', header: 'Last Name', cell: EditableCell },
-      { accessorKey: 'email', header: 'Email', cell: EditableCell },
-      { accessorKey: 'phone', header: 'Phone', cell: EditableCell },
+      {
+        accessorKey: 'first_name',
+        header: 'First Name',
+        cell: EditableCell,
+        meta: { defaultType: 'text' },
+      },
+      {
+        accessorKey: 'last_name',
+        header: 'Last Name',
+        cell: EditableCell,
+        meta: { defaultType: 'text' },
+      },
+      {
+        accessorKey: 'email',
+        header: 'Email',
+        cell: EditableCell,
+        meta: { defaultType: 'email' },
+      },
+      {
+        accessorKey: 'phone',
+        header: 'Phone',
+        cell: EditableCell,
+        meta: { defaultType: 'phone' },
+      },
       {
         accessorFn: (row) => row.billing_address?.address ?? '',
         id: 'address',
         header: 'Billing Address',
         cell: EditableCell,
+        meta: { defaultType: 'text' },
       },
       ...customFieldColumns,
     ],
     [customFieldColumns]
+  )
+
+  /** Collect all enum values for a column from currently-loaded contacts */
+  const getEnumValues = useCallback(
+    (columnId) => {
+      const values = new Set()
+      for (const contact of contacts) {
+        let v
+        if (columnId === 'address') {
+          v = contact.billing_address?.address
+        } else if (columnId.startsWith('cf_')) {
+          v = contact.custom_fields?.find((f) => f.api_name === columnId)?.value
+        } else {
+          v = contact[columnId]
+        }
+        if (v != null && v !== '') values.add(String(v))
+      }
+      return Array.from(values).sort()
+    },
+    [contacts]
   )
 
   const table = useReactTable({
@@ -170,7 +339,17 @@ export default function CustomerTable() {
     columns,
     getCoreRowModel: getCoreRowModel(),
     getRowId: (row) => row.contact_id,
-    meta: { isEditMode, markDirty, clearDirty, isDirty, getDirtyValue },
+    meta: {
+      isEditMode,
+      markDirty,
+      clearDirty,
+      isDirty,
+      getDirtyValue,
+      getColType,
+      getEnumValues,
+      setValidationError,
+      clearValidationError,
+    },
   })
 
   // Build the flat list of pending changes for CommitModal
@@ -258,6 +437,7 @@ export default function CustomerTable() {
 
   function cancelEditMode() {
     setDirtyMap({})
+    setValidationErrors({})
     setIsEditMode(false)
   }
 
@@ -304,7 +484,7 @@ export default function CustomerTable() {
                 size="sm"
                 color="orange"
                 onClick={openModal}
-                disabled={dirtyCount === 0 || isFetching}
+                disabled={dirtyCount === 0 || isFetching || hasValidationErrors}
               >
                 Commit
               </Button>
@@ -333,16 +513,31 @@ export default function CustomerTable() {
           <Table.Thead>
             {table.getHeaderGroups().map((hg) => (
               <Table.Tr key={hg.id}>
-                {hg.headers.map((header) => (
-                  <Table.Th key={header.id} style={{ whiteSpace: 'nowrap' }}>
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
-                  </Table.Th>
-                ))}
+                {hg.headers.map((header) => {
+                  const colId = header.column.id
+                  const defaultType =
+                    header.column.columnDef.meta?.defaultType ?? 'text'
+                  const effectiveType = getColType(colId, defaultType)
+                  return (
+                    <Table.Th key={header.id} style={{ whiteSpace: 'nowrap' }}>
+                      {header.isPlaceholder ? null : (
+                        <ColumnHeader
+                          label={
+                            typeof header.column.columnDef.header === 'string'
+                              ? header.column.columnDef.header
+                              : flexRender(
+                                  header.column.columnDef.header,
+                                  header.getContext()
+                                )
+                          }
+                          columnId={colId}
+                          type={effectiveType}
+                          onTypeChange={handleTypeChange}
+                        />
+                      )}
+                    </Table.Th>
+                  )
+                })}
               </Table.Tr>
             ))}
           </Table.Thead>
