@@ -27,6 +27,9 @@ jobs:
       - name: Check formatting
         run: npx prettier --check .
 
+      - name: Audit dependencies
+        run: npm audit --omit=dev --audit-level=high
+
       - name: Lint GitHub Actions workflows
         uses: reviewdog/action-actionlint@v1
 

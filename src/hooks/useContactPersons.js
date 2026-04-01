@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useZohoAuth } from './useZohoAuth.js'
+import { useZohoAuth } from './useZohoAuth.jsx'
 import { fetchContactPersons } from '../lib/zohoApi.js'
 
 export function useContactPersons(contactId) {
