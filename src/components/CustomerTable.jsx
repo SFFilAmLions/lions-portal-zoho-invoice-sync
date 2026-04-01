@@ -37,8 +37,13 @@ function getStoredPageSize() {
  * Zoho does not support partial updates, so we must send the full object.
  */
 function buildPayload(original, dirtyFields) {
+  const first = dirtyFields.first_name ?? original.first_name ?? ''
+  const last = dirtyFields.last_name ?? original.last_name ?? ''
+
   const payload = {
-    contact_name: original.contact_name,
+    contact_name: `${first} ${last}`.trim(),
+    first_name: first,
+    last_name: last,
     email: original.email ?? '',
     phone: original.phone ?? '',
     billing_address: {
@@ -48,7 +53,9 @@ function buildPayload(original, dirtyFields) {
   }
 
   for (const [field, value] of Object.entries(dirtyFields)) {
-    if (field === 'address') {
+    if (field === 'first_name' || field === 'last_name') {
+      // already handled above
+    } else if (field === 'address') {
       payload.billing_address.address = value
     } else if (field.startsWith('cf_')) {
       const idx = payload.custom_fields.findIndex((f) => f.api_name === field)
@@ -143,7 +150,8 @@ export default function CustomerTable() {
 
   const columns = useMemo(
     () => [
-      { accessorKey: 'contact_name', header: 'Name', cell: EditableCell },
+      { accessorKey: 'first_name', header: 'First Name', cell: EditableCell },
+      { accessorKey: 'last_name', header: 'Last Name', cell: EditableCell },
       { accessorKey: 'email', header: 'Email', cell: EditableCell },
       { accessorKey: 'phone', header: 'Phone', cell: EditableCell },
       {
