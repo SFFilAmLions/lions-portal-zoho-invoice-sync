@@ -1,3 +1,9 @@
+# [1.6.0](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/compare/v1.5.0...v1.6.0) (2026-04-01)
+
+### Features
+
+- add column types with view/edit rendering and cookie-persisted overrides ([#21](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/21)) ([646036c](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/commit/646036c6d468dee63d95c27da05cfe1e8d591f63)), closes [#9](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/9)
+
 # [1.5.0](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/compare/v1.4.1...v1.5.0) (2026-04-01)
 
 ### Features
