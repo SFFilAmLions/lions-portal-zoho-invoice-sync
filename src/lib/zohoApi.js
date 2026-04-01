@@ -71,6 +71,25 @@ export async function fetchContacts(
 }
 
 /**
+ * Fetch contact persons for a given contact.
+ */
+export async function fetchContactPersons(accessToken, orgId, region, contactId) {
+  const url = `${BASE_INVOICE(region)}/contacts/${contactId}/contactpersons?organization_id=${orgId}`
+
+  const res = await fetch(url, {
+    headers: { Authorization: `Zoho-oauthtoken ${accessToken}` },
+  })
+
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(`fetchContactPersons failed (${res.status}): ${text}`)
+  }
+
+  const data = await res.json()
+  return data.contact_persons ?? []
+}
+
+/**
  * Update a single contact via PUT.
  * Zoho requires the full contact payload — partial updates are not supported.
  */

@@ -19,6 +19,7 @@ import { useZohoAuth } from '../hooks/useZohoAuth.jsx'
 import { useCustomers, useUpdateContact } from '../hooks/useCustomers.js'
 import EditableCell from './EditableCell.jsx'
 import CommitModal from './CommitModal.jsx'
+import ContactPersonsPanel from './ContactPersonsPanel.jsx'
 
 const PAGE_SIZE_OPTIONS = ['10', '25', '50', '100']
 const DEFAULT_PAGE_SIZE = '25'
@@ -174,6 +175,9 @@ export default function CustomerTable() {
   // Column type overrides: { [columnId]: type } — seeded from cookie on mount
   const [colTypeOverrides, setColTypeOverrides] = useState(readColTypesCookie)
 
+  // expandedRows: Set of contact_id strings currently expanded
+  const [expandedRows, setExpandedRows] = useState(new Set())
+
   const markDirty = useCallback((contactId, columnId, value) => {
     setDirtyMap((prev) => ({
       ...prev,
@@ -243,6 +247,18 @@ export default function CustomerTable() {
     [dirtyMap]
   )
 
+  const toggleExpanded = useCallback((contactId) => {
+    setExpandedRows((prev) => {
+      const next = new Set(prev)
+      if (next.has(contactId)) {
+        next.delete(contactId)
+      } else {
+        next.add(contactId)
+      }
+      return next
+    })
+  }, [])
+
   const contacts = data?.contacts ?? []
   const pageContext = data?.page_context ?? {}
 
@@ -279,6 +295,27 @@ export default function CustomerTable() {
   const columns = useMemo(
     () => [
       {
+        id: 'expander',
+        header: '',
+        meta: { noTypeSelector: true },
+        cell: ({ row }) => (
+          <button
+            onClick={() => toggleExpanded(row.id)}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: '0.7rem',
+              padding: '0 4px',
+              color: '#666',
+            }}
+            aria-label={expandedRows.has(row.id) ? 'Collapse' : 'Expand'}
+          >
+            {expandedRows.has(row.id) ? '▼' : '▶'}
+          </button>
+        ),
+      },
+      {
         accessorKey: 'first_name',
         header: 'First Name',
         cell: EditableCell,
@@ -311,7 +348,7 @@ export default function CustomerTable() {
       },
       ...customFieldColumns,
     ],
-    [customFieldColumns]
+    [customFieldColumns, expandedRows, toggleExpanded]
   )
 
   /** Collect all enum values for a column from currently-loaded contacts */
@@ -433,6 +470,7 @@ export default function CustomerTable() {
     }
     setPageSize(value)
     setPage(1)
+    setExpandedRows(new Set())
   }
 
   function cancelEditMode() {
@@ -449,6 +487,11 @@ export default function CustomerTable() {
     if (Object.keys(dirtyMap).length === 0) {
       setIsEditMode(false)
     }
+  }
+
+  function handlePageChange(next) {
+    setPage(next)
+    setExpandedRows(new Set())
   }
 
   const orgName = orgs.find((o) => o.organization_id === orgId)?.name ?? orgId
@@ -515,12 +558,14 @@ export default function CustomerTable() {
               <Table.Tr key={hg.id}>
                 {hg.headers.map((header) => {
                   const colId = header.column.id
+                  const noTypeSelector =
+                    header.column.columnDef.meta?.noTypeSelector ?? false
                   const defaultType =
                     header.column.columnDef.meta?.defaultType ?? 'text'
                   const effectiveType = getColType(colId, defaultType)
                   return (
                     <Table.Th key={header.id} style={{ whiteSpace: 'nowrap' }}>
-                      {header.isPlaceholder ? null : (
+                      {header.isPlaceholder || noTypeSelector ? null : (
                         <ColumnHeader
                           label={
                             typeof header.column.columnDef.header === 'string'
@@ -554,18 +599,31 @@ export default function CustomerTable() {
                 </Table.Td>
               </Table.Tr>
             ) : (
-              table.getRowModel().rows.map((row) => (
-                <Table.Tr key={row.id}>
-                  {row.getVisibleCells().map((cell) => (
-                    <Table.Td key={cell.id} py={4} px={6}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </Table.Td>
-                  ))}
-                </Table.Tr>
-              ))
+              table.getRowModel().rows.flatMap((row) => {
+                const isExpanded = expandedRows.has(row.id)
+                return [
+                  <Table.Tr key={row.id}>
+                    {row.getVisibleCells().map((cell) => (
+                      <Table.Td key={cell.id} py={4} px={6}>
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext()
+                        )}
+                      </Table.Td>
+                    ))}
+                  </Table.Tr>,
+                  isExpanded && (
+                    <Table.Tr key={`${row.id}-persons`}>
+                      <Table.Td
+                        colSpan={columns.length}
+                        style={{ padding: 0, background: '#f9fafb' }}
+                      >
+                        <ContactPersonsPanel contactId={row.id} />
+                      </Table.Td>
+                    </Table.Tr>
+                  ),
+                ]
+              })
             )}
           </Table.Tbody>
         </Table>
@@ -576,7 +634,7 @@ export default function CustomerTable() {
           <Button
             variant="default"
             size="sm"
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            onClick={() => handlePageChange(Math.max(1, page - 1))}
             disabled={page === 1 || isFetching}
           >
             ← Prev
@@ -587,7 +645,7 @@ export default function CustomerTable() {
           <Button
             variant="default"
             size="sm"
-            onClick={() => setPage((p) => p + 1)}
+            onClick={() => handlePageChange(page + 1)}
             disabled={!pageContext.has_more_page || isFetching}
           >
             Next →
