@@ -1,3 +1,9 @@
+# [1.7.0](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/compare/v1.6.0...v1.7.0) (2026-04-01)
+
+### Features
+
+- view contact persons for a customer (read-only) ([#28](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/28)) ([c9f8099](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/commit/c9f8099b7a488a10959a9fa3df087907cc7901cc)), closes [#23](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/23)
+
 # [1.6.0](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/compare/v1.5.0...v1.6.0) (2026-04-01)
 
 ### Features
