@@ -4,14 +4,33 @@ import {
   getCoreRowModel,
   flexRender,
 } from '@tanstack/react-table'
-import { Alert, Badge, Button, Group, Stack, Table, Text } from '@mantine/core'
+import {
+  Alert,
+  Badge,
+  Button,
+  Group,
+  Select,
+  Stack,
+  Table,
+  Text,
+} from '@mantine/core'
 import { useDisclosure } from '@mantine/hooks'
 import { useZohoAuth } from '../hooks/useZohoAuth.js'
 import { useCustomers, useUpdateContact } from '../hooks/useCustomers.js'
 import EditableCell from './EditableCell.jsx'
 import CommitModal from './CommitModal.jsx'
 
-const PER_PAGE = 25
+const PAGE_SIZE_OPTIONS = ['10', '25', '50', '100']
+const DEFAULT_PAGE_SIZE = '25'
+
+function getStoredPageSize() {
+  try {
+    const stored = localStorage.getItem('customerTable.pageSize')
+    return PAGE_SIZE_OPTIONS.includes(stored) ? stored : DEFAULT_PAGE_SIZE
+  } catch {
+    return DEFAULT_PAGE_SIZE
+  }
+}
 
 /**
  * Build the full contact payload for a Zoho PUT request.
@@ -49,9 +68,10 @@ function buildPayload(original, dirtyFields) {
 export default function CustomerTable() {
   const { logout, orgs, orgId } = useZohoAuth()
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(getStoredPageSize)
   const { data, isLoading, isFetching, isError, error } = useCustomers({
     page,
-    perPage: PER_PAGE,
+    perPage: Number(pageSize),
   })
   const { mutateAsync: saveContact } = useUpdateContact()
 
@@ -218,6 +238,16 @@ export default function CustomerTable() {
     setIsEditMode(true)
   }
 
+  function handlePageSizeChange(value) {
+    try {
+      localStorage.setItem('customerTable.pageSize', value)
+    } catch {
+      // ignore storage errors
+    }
+    setPageSize(value)
+    setPage(1)
+  }
+
   function cancelEditMode() {
     setDirtyMap({})
     setIsEditMode(false)
@@ -338,26 +368,41 @@ export default function CustomerTable() {
         </Table>
       </div>
 
-      <Group gap="sm" align="center">
-        <Button
-          variant="default"
-          size="sm"
-          onClick={() => setPage((p) => Math.max(1, p - 1))}
-          disabled={page === 1 || isFetching}
-        >
-          ← Prev
-        </Button>
-        <Text size="sm" c="dimmed">
-          Page {page}
-        </Text>
-        <Button
-          variant="default"
-          size="sm"
-          onClick={() => setPage((p) => p + 1)}
-          disabled={!pageContext.has_more_page || isFetching}
-        >
-          Next →
-        </Button>
+      <Group gap="sm" align="center" justify="space-between">
+        <Group gap="sm" align="center">
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1 || isFetching}
+          >
+            ← Prev
+          </Button>
+          <Text size="sm" c="dimmed">
+            Page {page}
+          </Text>
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => setPage((p) => p + 1)}
+            disabled={!pageContext.has_more_page || isFetching}
+          >
+            Next →
+          </Button>
+        </Group>
+        <Group gap="xs" align="center">
+          <Text size="sm" c="dimmed">
+            Rows per page
+          </Text>
+          <Select
+            size="sm"
+            w={80}
+            value={pageSize}
+            onChange={handlePageSizeChange}
+            data={PAGE_SIZE_OPTIONS}
+            allowDeselect={false}
+          />
+        </Group>
       </Group>
 
       <CommitModal
