@@ -58,6 +58,25 @@ Cloudflare Worker at `/proxy/{region}/{...rest}` forwards browser requests to `w
 
 `CustomerTable.jsx` uses TanStack Table (headless) with `EditableCell` components. Custom fields are discovered dynamically from the first contact. Zoho requires full contact objects on every PUT (no PATCH), so `buildPayload()` in `CustomerTable.jsx` always sends the complete record. A `dirtyMap` tracks unsaved cell changes; only successful saves clear entries.
 
+## Workflow
+
+All development should be done in a **git worktree** on a new branch. Each task should result in a pull request against `main` — never commit directly to `main`.
+
+```bash
+git worktree add .claude/worktrees/<branch> -b <branch> main
+# do all work inside the worktree, then:
+gh pr create
+```
+
+After opening the PR:
+
+1. Check mergeability: `gh pr view <number> --json mergeable,mergeStateStatus`
+   - If `CONFLICTING`, rebase the branch onto `main` and resolve conflicts before proceeding
+2. Wait ~30s for CI to register, then watch: `sleep 30 && gh pr checks <number> --watch`
+3. If checks fail, read the logs (`gh run view <run-id> --log-failed`), apply a cursory fix, push, and re-watch
+4. If the failure cannot be quickly fixed, warn the user and leave the PR open for manual attention
+5. Keep the worktree alive until the PR is merged or closed: `git worktree remove .claude/worktrees/<branch>`
+
 ## Deployment
 
 CI/CD via `.github/workflows/deploy.yml`:
