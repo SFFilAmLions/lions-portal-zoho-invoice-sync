@@ -24,7 +24,15 @@ const PAGE_SIZE_OPTIONS = ['10', '25', '50', '100']
 const DEFAULT_PAGE_SIZE = '25'
 
 const COOKIE_NAME = 'lions-col-types'
-const COLUMN_TYPES = ['text', 'email', 'phone', 'enum']
+const COLUMN_TYPES = [
+  'text',
+  'email',
+  'phone',
+  'enum',
+  'url',
+  'boolean',
+  'date',
+]
 
 /** Auto-type a custom field based on its Zoho data_type */
 function defaultTypeForCustomField(cf) {
@@ -156,6 +164,9 @@ export default function CustomerTable() {
   // dirtyMap: { [contactId]: { [columnId]: newValue } }
   const [dirtyMap, setDirtyMap] = useState({})
 
+  // validationErrors: { [contactId]: { [columnId]: string } }
+  const [validationErrors, setValidationErrors] = useState({})
+
   // CommitModal open state
   const [modalOpened, { open: openModal, close: closeModal }] =
     useDisclosure(false)
@@ -184,6 +195,27 @@ export default function CustomerTable() {
     })
   }, [])
 
+  const setValidationError = useCallback((contactId, columnId, error) => {
+    setValidationErrors((prev) => ({
+      ...prev,
+      [contactId]: { ...(prev[contactId] ?? {}), [columnId]: error },
+    }))
+  }, [])
+
+  const clearValidationError = useCallback((contactId, columnId) => {
+    setValidationErrors((prev) => {
+      const contactFields = { ...(prev[contactId] ?? {}) }
+      delete contactFields[columnId]
+      const next = { ...prev }
+      if (Object.keys(contactFields).length === 0) {
+        delete next[contactId]
+      } else {
+        next[contactId] = contactFields
+      }
+      return next
+    })
+  }, [])
+
   const isDirty = useCallback(
     (contactId, columnId) => dirtyMap[contactId]?.[columnId] !== undefined,
     [dirtyMap]
@@ -192,6 +224,14 @@ export default function CustomerTable() {
   const getDirtyValue = useCallback(
     (contactId, columnId) => dirtyMap[contactId]?.[columnId],
     [dirtyMap]
+  )
+
+  const hasValidationErrors = useMemo(
+    () =>
+      Object.values(validationErrors).some(
+        (fields) => Object.keys(fields).length > 0
+      ),
+    [validationErrors]
   )
 
   const dirtyCount = useMemo(
@@ -287,6 +327,8 @@ export default function CustomerTable() {
       getDirtyValue,
       getColType,
       getEnumValues,
+      setValidationError,
+      clearValidationError,
     },
   })
 
@@ -375,6 +417,7 @@ export default function CustomerTable() {
 
   function cancelEditMode() {
     setDirtyMap({})
+    setValidationErrors({})
     setIsEditMode(false)
   }
 
@@ -421,7 +464,7 @@ export default function CustomerTable() {
                 size="sm"
                 color="orange"
                 onClick={openModal}
-                disabled={dirtyCount === 0 || isFetching}
+                disabled={dirtyCount === 0 || isFetching || hasValidationErrors}
               >
                 Commit
               </Button>

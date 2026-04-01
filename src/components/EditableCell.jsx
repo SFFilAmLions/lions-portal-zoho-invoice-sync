@@ -1,11 +1,32 @@
 import { useState } from 'react'
-import { Anchor, Select, Stack, Text, TextInput } from '@mantine/core'
+import { Anchor, Checkbox, Select, Stack, Text, TextInput } from '@mantine/core'
+import { DateInput } from '@mantine/dates'
 
 const ADD_NEW_SENTINEL = '__add_new__'
+
+/** Validate a value for a given column type. Returns error string or null. */
+function validate(type, value) {
+  if (!value || value === '') return null
+  if (type === 'email') {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+      ? null
+      : 'Must be a valid email'
+  }
+  if (type === 'url') {
+    return /^https?:\/\//i.test(value)
+      ? null
+      : 'Must be a valid URL (https://…)'
+  }
+  if (type === 'date') {
+    return !isNaN(new Date(value)) ? null : 'Must be a valid date'
+  }
+  return null
+}
 
 export default function EditableCell({ getValue, row, column, table }) {
   const initialValue = getValue() ?? ''
   const [value, setValue] = useState(initialValue)
+  const [validationError, setValidationErrorLocal] = useState(null)
   // Tracks a newly typed value when user picks "Add new…" in enum mode
   const [addingNew, setAddingNew] = useState(false)
   const [newEnumValue, setNewEnumValue] = useState('')
@@ -29,8 +50,21 @@ export default function EditableCell({ getValue, row, column, table }) {
   // The currently displayed value (dirty wins)
   const displayValue = isDirty ? dirtyValue : originalValue
 
-  // --- Shared blur handler for text/email/phone ---
+  function reportValidationError(error) {
+    setValidationErrorLocal(error)
+    if (error) {
+      meta.setValidationError?.(contactId, columnId, error)
+    } else {
+      meta.clearValidationError?.(contactId, columnId)
+    }
+  }
+
+  // --- Shared blur handler for text/email/phone/url ---
   function handleBlur() {
+    const err = validate(type, value)
+    reportValidationError(err)
+    if (err) return // don't mark dirty if invalid
+
     if (value !== originalValue) {
       meta.markDirty(contactId, columnId, value)
     } else if (isDirty && value === originalValue) {
@@ -47,14 +81,133 @@ export default function EditableCell({ getValue, row, column, table }) {
         </Anchor>
       )
     }
+    if (type === 'url') {
+      if (displayValue) {
+        return (
+          <Anchor
+            href={displayValue}
+            target="_blank"
+            rel="noopener noreferrer"
+            size="sm"
+          >
+            {displayValue}
+          </Anchor>
+        )
+      }
+      return <Text size="sm">{displayValue}</Text>
+    }
+    if (type === 'boolean') {
+      return (
+        <Text size="sm">
+          {displayValue === true || displayValue === 'true' ? 'Yes' : 'No'}
+        </Text>
+      )
+    }
     return <Text size="sm">{displayValue}</Text>
+  }
+
+  // --- Edit mode: boolean ---
+  if (type === 'boolean') {
+    const boolValue = isDirty
+      ? dirtyValue === true || dirtyValue === 'true'
+      : initialValue === true || initialValue === 'true'
+
+    function handleCheckboxChange(e) {
+      const checked = e.currentTarget.checked
+      if (checked !== (originalValue === true || originalValue === 'true')) {
+        meta.markDirty(contactId, columnId, checked)
+      } else if (isDirty) {
+        meta.clearDirty(contactId, columnId)
+      }
+    }
+
+    return (
+      <Stack gap={2}>
+        <Checkbox
+          checked={boolValue}
+          onChange={handleCheckboxChange}
+          size="xs"
+          styles={{
+            input: {
+              cursor: 'pointer',
+              borderColor: isDirty ? '#f59e0b' : undefined,
+            },
+          }}
+        />
+        {isDirty && (
+          <Text size="xs" c="dimmed" fs="italic">
+            was:{' '}
+            {originalValue === true || originalValue === 'true' ? 'Yes' : 'No'}
+          </Text>
+        )}
+      </Stack>
+    )
+  }
+
+  // --- Edit mode: date ---
+  if (type === 'date') {
+    // Convert stored string to Date object for DateInput
+    const dateValue = isDirty
+      ? dirtyValue
+        ? new Date(dirtyValue)
+        : null
+      : originalValue
+        ? new Date(originalValue)
+        : null
+    const validDateValue = dateValue && !isNaN(dateValue) ? dateValue : null
+
+    function handleDateChange(newDate) {
+      const strValue = newDate ? newDate.toISOString().split('T')[0] : ''
+      const err = validate('date', strValue)
+      reportValidationError(err)
+      if (!err) {
+        if (strValue !== originalValue) {
+          meta.markDirty(contactId, columnId, strValue)
+        } else if (isDirty) {
+          meta.clearDirty(contactId, columnId)
+        }
+      }
+    }
+
+    return (
+      <Stack gap={2}>
+        <DateInput
+          value={validDateValue}
+          onChange={handleDateChange}
+          size="xs"
+          error={validationError}
+          clearable
+          valueFormat="YYYY-MM-DD"
+          styles={{
+            input: {
+              borderColor: isDirty && !validationError ? '#f59e0b' : undefined,
+              backgroundColor:
+                isDirty && !validationError ? '#fefce8' : undefined,
+            },
+          }}
+        />
+        {isDirty && !validationError && (
+          <Text size="xs" c="dimmed" fs="italic">
+            was: {originalValue}
+          </Text>
+        )}
+      </Stack>
+    )
   }
 
   // --- Edit mode: enum ---
   if (type === 'enum') {
     const enumValues = meta.getEnumValues ? meta.getEnumValues(columnId) : []
+
+    // Include dirty value if it's not already in the known enum values
+    const currentDirtyVal = isDirty ? dirtyValue : null
+    const allEnumValues =
+      currentDirtyVal && !enumValues.includes(currentDirtyVal)
+        ? [...enumValues, currentDirtyVal]
+        : enumValues
+
     const selectData = [
-      ...enumValues.map((v) => ({ value: v, label: v })),
+      ...allEnumValues.map((v) => ({ value: v, label: v })),
       { value: ADD_NEW_SENTINEL, label: 'Add new…' },
     ]
 
@@ -133,9 +286,15 @@ export default function EditableCell({ getValue, row, column, table }) {
     )
   }
 
-  // --- Edit mode: text / email / phone ---
+  // --- Edit mode: text / email / phone / url ---
   const inputType =
-    type === 'email' ? 'email' : type === 'phone' ? 'tel' : 'text'
+    type === 'email'
+      ? 'email'
+      : type === 'phone'
+        ? 'tel'
+        : type === 'url'
+          ? 'url'
+          : 'text'
 
   return (
     <Stack gap={2}>
@@ -144,15 +303,17 @@ export default function EditableCell({ getValue, row, column, table }) {
         value={value}
         onChange={(e) => setValue(e.target.value)}
         onBlur={handleBlur}
+        error={validationError}
         size="xs"
         styles={{
           input: {
-            borderColor: isDirty ? '#f59e0b' : undefined,
-            backgroundColor: isDirty ? '#fefce8' : undefined,
+            borderColor: isDirty && !validationError ? '#f59e0b' : undefined,
+            backgroundColor:
+              isDirty && !validationError ? '#fefce8' : undefined,
           },
         }}
       />
-      {isDirty && (
+      {isDirty && !validationError && (
         <Text size="xs" c="dimmed" fs="italic">
           was: {originalValue}
         </Text>
