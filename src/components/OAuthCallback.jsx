@@ -63,7 +63,7 @@ export default function OAuthCallback() {
     <div style={styles.container}>
       <div style={styles.card}>
         <h2 style={styles.title}>Connecting to Zoho…</h2>
-        <p style={styles.sub}>Exchanging authorization code, please wait.</p>
+        <p style={styles.sub}>Completing sign-in, please wait.</p>
       </div>
     </div>
   )

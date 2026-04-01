@@ -1,4 +1,10 @@
-import { useState, useEffect, useCallback } from 'react'
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+} from 'react'
 import { BASE_ACCOUNTS, fetchOrganizations } from '../lib/zohoApi.js'
 
 const SESSION_KEY = 'zoho_session'
@@ -28,7 +34,9 @@ function clearSession() {
   sessionStorage.removeItem(AUTH_STATE_KEY)
 }
 
-export function useZohoAuth() {
+const ZohoAuthContext = createContext(null)
+
+export function ZohoAuthProvider({ children }) {
   const [session, setSession] = useState(() => loadSession())
 
   // Auto-logout when token expires
@@ -90,14 +98,26 @@ export function useZohoAuth() {
     setSession(null)
   }, [])
 
-  return {
-    isAuthenticated: !!session && Date.now() < (session?.expiresAt ?? 0),
-    accessToken: session?.accessToken ?? null,
-    region: session?.region ?? null,
-    orgId: session?.orgId ?? null,
-    orgs: session?.orgs ?? [],
-    login,
-    handleCallback,
-    logout,
-  }
+  return (
+    <ZohoAuthContext.Provider
+      value={{
+        isAuthenticated: !!session && Date.now() < (session?.expiresAt ?? 0),
+        accessToken: session?.accessToken ?? null,
+        region: session?.region ?? null,
+        orgId: session?.orgId ?? null,
+        orgs: session?.orgs ?? [],
+        login,
+        handleCallback,
+        logout,
+      }}
+    >
+      {children}
+    </ZohoAuthContext.Provider>
+  )
+}
+
+export function useZohoAuth() {
+  const ctx = useContext(ZohoAuthContext)
+  if (!ctx) throw new Error('useZohoAuth must be used within ZohoAuthProvider')
+  return ctx
 }

@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MantineProvider } from '@mantine/core'
 import '@mantine/core/styles.css'
 import App from './App.jsx'
+import { ZohoAuthProvider } from './hooks/useZohoAuth.js'
 import './index.css'
 
 const queryClient = new QueryClient({
@@ -21,7 +22,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <MantineProvider>
       <HashRouter>
         <QueryClientProvider client={queryClient}>
-          <App />
+          <ZohoAuthProvider>
+            <App />
+          </ZohoAuthProvider>
         </QueryClientProvider>
       </HashRouter>
     </MantineProvider>
