@@ -1,3 +1,9 @@
+# [1.3.0](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/compare/v1.2.0...v1.3.0) (2026-04-01)
+
+### Features
+
+- add read-only view mode with edit/commit flow ([#16](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/16)) ([c6f34bb](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/commit/c6f34bb0995c34a70d52f6d6439a44dfd6d43b56))
+
 # [1.2.0](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/compare/v1.1.4...v1.2.0) (2026-03-31)
 
 ### Bug Fixes
