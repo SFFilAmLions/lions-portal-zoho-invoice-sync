@@ -72,7 +72,7 @@ After opening the PR:
 
 1. Check mergeability: `gh pr view <number> --json mergeable,mergeStateStatus`
    - If `CONFLICTING`, rebase the branch onto `main` and resolve conflicts before proceeding
-2. Wait for CI: `gh pr checks <number> --watch`
+2. Wait ~30s for CI to register, then watch: `sleep 30 && gh pr checks <number> --watch`
 3. If checks fail, read the logs (`gh run view <run-id> --log-failed`), apply a cursory fix, push, and re-watch
 4. If the failure cannot be quickly fixed, warn the user and leave the PR open for manual attention
 5. Keep the worktree alive until the PR is merged or closed: `git worktree remove .claude/worktrees/<branch>`
