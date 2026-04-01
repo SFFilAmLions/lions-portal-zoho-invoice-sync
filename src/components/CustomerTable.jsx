@@ -5,9 +5,11 @@ import {
   flexRender,
 } from '@tanstack/react-table'
 import { Alert, Badge, Button, Group, Stack, Table, Text } from '@mantine/core'
+import { useDisclosure } from '@mantine/hooks'
 import { useZohoAuth } from '../hooks/useZohoAuth.js'
 import { useCustomers, useUpdateContact } from '../hooks/useCustomers.js'
 import EditableCell from './EditableCell.jsx'
+import CommitModal from './CommitModal.jsx'
 
 const PER_PAGE = 25
 
@@ -53,8 +55,15 @@ export default function CustomerTable() {
   })
   const { mutateAsync: saveContact } = useUpdateContact()
 
+  // Edit mode toggle
+  const [isEditMode, setIsEditMode] = useState(false)
+
   // dirtyMap: { [contactId]: { [columnId]: newValue } }
   const [dirtyMap, setDirtyMap] = useState({})
+
+  // CommitModal open state
+  const [modalOpened, { open: openModal, close: closeModal }] =
+    useDisclosure(false)
 
   const markDirty = useCallback((contactId, columnId, value) => {
     setDirtyMap((prev) => ({
@@ -63,8 +72,27 @@ export default function CustomerTable() {
     }))
   }, [])
 
+  const clearDirty = useCallback((contactId, columnId) => {
+    setDirtyMap((prev) => {
+      const contactFields = { ...(prev[contactId] ?? {}) }
+      delete contactFields[columnId]
+      const next = { ...prev }
+      if (Object.keys(contactFields).length === 0) {
+        delete next[contactId]
+      } else {
+        next[contactId] = contactFields
+      }
+      return next
+    })
+  }, [])
+
   const isDirty = useCallback(
     (contactId, columnId) => dirtyMap[contactId]?.[columnId] !== undefined,
+    [dirtyMap]
+  )
+
+  const getDirtyValue = useCallback(
+    (contactId, columnId) => dirtyMap[contactId]?.[columnId],
     [dirtyMap]
   )
 
@@ -114,13 +142,47 @@ export default function CustomerTable() {
     columns,
     getCoreRowModel: getCoreRowModel(),
     getRowId: (row) => row.contact_id,
-    meta: { markDirty, isDirty },
+    meta: { isEditMode, markDirty, clearDirty, isDirty, getDirtyValue },
   })
 
-  async function saveAll() {
-    const entries = Object.entries(dirtyMap)
-    if (!entries.length) return
+  // Build the flat list of pending changes for CommitModal
+  const pendingChanges = useMemo(() => {
+    const changes = []
+    for (const [contactId, fields] of Object.entries(dirtyMap)) {
+      const contact = contacts.find((c) => c.contact_id === contactId)
+      if (!contact) continue
+      for (const [columnId, newValue] of Object.entries(fields)) {
+        // Resolve original value for this column
+        let original = ''
+        if (columnId === 'address') {
+          original = contact.billing_address?.address ?? ''
+        } else if (columnId.startsWith('cf_')) {
+          original =
+            contact.custom_fields?.find((f) => f.api_name === columnId)
+              ?.value ?? ''
+        } else {
+          original = contact[columnId] ?? ''
+        }
 
+        // Resolve human-readable field label from column definitions
+        const colDef = columns.find((c) => (c.accessorKey ?? c.id) === columnId)
+        const fieldLabel = colDef?.header ?? columnId
+
+        changes.push({
+          contactId,
+          contactName: contact.contact_name,
+          field: fieldLabel,
+          original,
+          newValue,
+        })
+      }
+    }
+    return changes
+  }, [dirtyMap, contacts, columns])
+
+  // Called by CommitModal — saves all dirty contacts and returns a Map of results
+  async function handleCommit() {
+    const entries = Object.entries(dirtyMap)
     const results = await Promise.allSettled(
       entries.map(([contactId, dirtyFields]) => {
         const original = contacts.find((c) => c.contact_id === contactId)
@@ -141,11 +203,33 @@ export default function CustomerTable() {
       return next
     })
 
-    const failed = results.filter((r) => r.status === 'rejected')
-    if (failed.length) {
-      alert(
-        `${failed.length} save(s) failed:\n${failed.map((f) => f.reason?.message).join('\n')}`
+    // Return a Map of contactId → Error|null for the modal to display
+    const resultMap = new Map()
+    entries.forEach(([contactId], i) => {
+      resultMap.set(
+        contactId,
+        results[i].status === 'rejected' ? results[i].reason : null
       )
+    })
+    return resultMap
+  }
+
+  function enterEditMode() {
+    setIsEditMode(true)
+  }
+
+  function cancelEditMode() {
+    setDirtyMap({})
+    setIsEditMode(false)
+  }
+
+  // After CommitModal closes following a successful save, exit edit mode
+  function handleModalClose() {
+    closeModal()
+    // If all changes were saved (dirtyMap is empty), exit edit mode
+    // If there were errors, stay in edit mode so the user can retry
+    if (Object.keys(dirtyMap).length === 0) {
+      setIsEditMode(false)
     }
   }
 
@@ -163,25 +247,28 @@ export default function CustomerTable() {
           </Text>
         </Stack>
         <Group gap="xs" align="center">
-          {dirtyCount > 0 && (
+          {!isEditMode && (
+            <Button size="sm" variant="light" onClick={enterEditMode}>
+              Edit
+            </Button>
+          )}
+          {isEditMode && (
             <>
-              <Badge color="yellow" variant="light">
-                {dirtyCount} unsaved change{dirtyCount !== 1 ? 's' : ''}
-              </Badge>
-              <Button
-                variant="default"
-                size="sm"
-                onClick={() => setDirtyMap({})}
-              >
-                Discard
+              {dirtyCount > 0 && (
+                <Badge color="yellow" variant="light">
+                  {dirtyCount} unsaved change{dirtyCount !== 1 ? 's' : ''}
+                </Badge>
+              )}
+              <Button variant="default" size="sm" onClick={cancelEditMode}>
+                Cancel
               </Button>
               <Button
                 size="sm"
                 color="orange"
-                onClick={saveAll}
-                disabled={isFetching}
+                onClick={openModal}
+                disabled={dirtyCount === 0 || isFetching}
               >
-                Save All
+                Commit
               </Button>
             </>
           )}
@@ -272,6 +359,13 @@ export default function CustomerTable() {
           Next →
         </Button>
       </Group>
+
+      <CommitModal
+        opened={modalOpened}
+        onClose={handleModalClose}
+        pendingChanges={pendingChanges}
+        onConfirm={handleCommit}
+      />
     </Stack>
   )
 }
