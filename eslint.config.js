@@ -1,4 +1,5 @@
 import js from '@eslint/js'
+import importPlugin from 'eslint-plugin-import'
 import reactPlugin from 'eslint-plugin-react'
 import reactHooks from 'eslint-plugin-react-hooks'
 import globals from 'globals'
@@ -8,6 +9,7 @@ export default [
   {
     files: ['src/**/*.{js,jsx}', 'worker/**/*.js'],
     plugins: {
+      import: importPlugin,
       react: reactPlugin,
       'react-hooks': reactHooks,
     },
@@ -31,6 +33,7 @@ export default [
       'react-hooks/purity': 'off',
       'react-hooks/set-state-in-effect': 'off',
       'react-hooks/incompatible-library': 'warn',
+      'import/no-unresolved': 'error',
     },
   },
   {
