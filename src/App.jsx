@@ -1,5 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
-import { useZohoAuth } from './hooks/useZohoAuth.js'
+import { useZohoAuth } from './hooks/useZohoAuth.jsx'
 import LoginPage from './components/LoginPage.jsx'
 import OAuthCallback from './components/OAuthCallback.jsx'
 import CustomerTable from './components/CustomerTable.jsx'

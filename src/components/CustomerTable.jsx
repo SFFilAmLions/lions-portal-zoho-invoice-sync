@@ -15,7 +15,7 @@ import {
   Text,
 } from '@mantine/core'
 import { useDisclosure } from '@mantine/hooks'
-import { useZohoAuth } from '../hooks/useZohoAuth.js'
+import { useZohoAuth } from '../hooks/useZohoAuth.jsx'
 import { useCustomers, useUpdateContact } from '../hooks/useCustomers.js'
 import EditableCell from './EditableCell.jsx'
 import CommitModal from './CommitModal.jsx'
@@ -278,10 +278,30 @@ export default function CustomerTable() {
 
   const columns = useMemo(
     () => [
-      { accessorKey: 'first_name', header: 'First Name', cell: EditableCell, meta: { defaultType: 'text' } },
-      { accessorKey: 'last_name', header: 'Last Name', cell: EditableCell, meta: { defaultType: 'text' } },
-      { accessorKey: 'email', header: 'Email', cell: EditableCell, meta: { defaultType: 'email' } },
-      { accessorKey: 'phone', header: 'Phone', cell: EditableCell, meta: { defaultType: 'phone' } },
+      {
+        accessorKey: 'first_name',
+        header: 'First Name',
+        cell: EditableCell,
+        meta: { defaultType: 'text' },
+      },
+      {
+        accessorKey: 'last_name',
+        header: 'Last Name',
+        cell: EditableCell,
+        meta: { defaultType: 'text' },
+      },
+      {
+        accessorKey: 'email',
+        header: 'Email',
+        cell: EditableCell,
+        meta: { defaultType: 'email' },
+      },
+      {
+        accessorKey: 'phone',
+        header: 'Phone',
+        cell: EditableCell,
+        meta: { defaultType: 'phone' },
+      },
       {
         accessorFn: (row) => row.billing_address?.address ?? '',
         id: 'address',

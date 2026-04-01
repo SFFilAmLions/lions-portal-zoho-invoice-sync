@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useZohoAuth } from '../hooks/useZohoAuth.js'
+import { useZohoAuth } from '../hooks/useZohoAuth.jsx'
 import {
   Button,
   Center,

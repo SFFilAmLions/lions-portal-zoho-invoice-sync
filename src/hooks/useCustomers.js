@@ -5,7 +5,7 @@ import {
   keepPreviousData,
 } from '@tanstack/react-query'
 import { fetchContacts, updateContact } from '../lib/zohoApi.js'
-import { useZohoAuth } from './useZohoAuth.js'
+import { useZohoAuth } from './useZohoAuth.jsx'
 
 export function useCustomers({ page = 1, perPage = 25 } = {}) {
   const { accessToken, orgId, region } = useZohoAuth()

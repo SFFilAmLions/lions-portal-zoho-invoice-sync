@@ -6,7 +6,7 @@ import { MantineProvider } from '@mantine/core'
 import '@mantine/core/styles.css'
 import '@mantine/dates/styles.css'
 import App from './App.jsx'
-import { ZohoAuthProvider } from './hooks/useZohoAuth.js'
+import { ZohoAuthProvider } from './hooks/useZohoAuth.jsx'
 import './index.css'
 
 const queryClient = new QueryClient({

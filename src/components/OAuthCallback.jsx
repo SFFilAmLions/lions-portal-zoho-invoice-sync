@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useZohoAuth } from '../hooks/useZohoAuth.js'
+import { useZohoAuth } from '../hooks/useZohoAuth.jsx'
 
 export default function OAuthCallback() {
   const { handleCallback } = useZohoAuth()
