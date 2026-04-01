@@ -1,3 +1,9 @@
+## [1.4.1](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/compare/v1.4.0...v1.4.1) (2026-04-01)
+
+### Bug Fixes
+
+- first login no longer stuck on loading screen ([#18](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/18)) ([21127ac](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/commit/21127ac12d16157d904ce442619eddc0dab8795d))
+
 # [1.4.0](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/compare/v1.3.0...v1.4.0) (2026-04-01)
 
 ### Features
