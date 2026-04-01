@@ -1,3 +1,9 @@
+# [1.5.0](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/compare/v1.4.1...v1.5.0) (2026-04-01)
+
+### Features
+
+- split contact_name into first_name / last_name columns ([#20](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/20)) ([a5c606f](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/commit/a5c606f29f2649c70b4c475b19941572205e8f06)), closes [#8](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/8)
+
 ## [1.4.1](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/compare/v1.4.0...v1.4.1) (2026-04-01)
 
 ### Bug Fixes
