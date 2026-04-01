@@ -1,8 +1,8 @@
 name: Release & Deploy
 
 on:
-  push:
-    branches: [main]
+  schedule:
+    - cron: '0 2 * * *' # 2am UTC daily
   pull_request:
   workflow_dispatch:
 
