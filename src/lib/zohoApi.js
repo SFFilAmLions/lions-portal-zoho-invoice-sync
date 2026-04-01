@@ -73,7 +73,12 @@ export async function fetchContacts(
 /**
  * Fetch contact persons for a given contact.
  */
-export async function fetchContactPersons(accessToken, orgId, region, contactId) {
+export async function fetchContactPersons(
+  accessToken,
+  orgId,
+  region,
+  contactId
+) {
   const url = `${BASE_INVOICE(region)}/contacts/${contactId}/contactpersons?organization_id=${orgId}`
 
   const res = await fetch(url, {
