@@ -27,18 +27,20 @@ npm run dev        # Vite dev server
 npm run build      # production build → dist/
 npm run preview    # preview built dist locally
 npm run deploy     # deploy dist/ to gh-pages branch
+npm run lint       # ESLint
+npm run format     # Prettier (write)
 wrangler deploy    # deploy Cloudflare Worker CORS proxy
 ```
 
-There are no lint or test commands. Commits are validated against Conventional Commits via `commitlint` (Husky hook).
+There are no test commands. Commits are validated against Conventional Commits via `commitlint` (Husky hook). `lint-staged` auto-runs ESLint + Prettier on staged files at commit time.
 
 ## Architecture
 
-**Client-only React SPA** deployed to GitHub Pages. No backend — uses a Cloudflare Worker as a CORS proxy for Zoho Invoice API.
+**Client-only React SPA** deployed to GitHub Pages. No backend — uses a Cloudflare Worker as a CORS proxy for Zoho Invoice API. UI is built with **Mantine** (v8).
 
 ### Authentication
 
-OAuth 2.0 **implicit flow** (`response_type=token`). Zoho sends the token in the URL hash after login. `OAuthCallback` parses `window.location.search` (not the hash, since React Router's HashRouter claims the hash) to extract the token, then stores it in `sessionStorage`.
+OAuth 2.0 **implicit flow** (`response_type=token`). Zoho redirects to `redirect_uri#access_token=TOKEN&expires_in=3600`. `OAuthCallback` reads `window.location.hash` (not `search`) and immediately clears it via `history.replaceState` before any async work to prevent re-entry. The token and org info are stored in `sessionStorage`.
 
 ### Routing
 
