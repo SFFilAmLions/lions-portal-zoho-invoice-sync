@@ -1,6 +1,8 @@
 name: Release & Deploy
 
 on:
+  push:
+    branches: [main]
   schedule:
     - cron: '0 2 * * *' # 2am UTC daily
   pull_request:
@@ -34,7 +36,7 @@ jobs:
         uses: reviewdog/action-actionlint@v1
 
   release:
-    if: github.event_name != 'pull_request'
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     needs: lint
     runs-on: ubuntu-latest
     outputs:
@@ -57,7 +59,7 @@ jobs:
 
   deploy:
     if: github.event_name != 'pull_request'
-    needs: release
+    needs: lint
     runs-on: ubuntu-latest
 
     steps:
