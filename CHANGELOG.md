@@ -1,3 +1,9 @@
+## [1.7.1](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/compare/v1.7.0...v1.7.1) (2026-04-01)
+
+### Bug Fixes
+
+- correct useZohoAuth import extension in useContactPersons ([#30](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/30)) ([dc25c95](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/commit/dc25c9564e399c2450d1092e267a9137be0abd90)), closes [hi#severity](https://github.com/hi/issues/severity)
+
 # [1.7.0](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/compare/v1.6.0...v1.7.0) (2026-04-01)
 
 ### Features
