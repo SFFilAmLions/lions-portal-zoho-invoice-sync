@@ -1,3 +1,9 @@
+# [1.4.0](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/compare/v1.3.0...v1.4.0) (2026-04-01)
+
+### Features
+
+- add configurable page size selector to customer table ([#19](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/19)) ([89a794d](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/commit/89a794d64c9bd3d964fd9e8ebdfe5e8310e31a3e)), closes [#17](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/17)
+
 # [1.3.0](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/compare/v1.2.0...v1.3.0) (2026-04-01)
 
 ### Features
