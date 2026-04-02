@@ -237,14 +237,15 @@ export default function ContactPersonsPanel({ contactId }) {
                             Save
                           </Button>
                         )}
-                        <Button
-                          size="compact-xs"
-                          color="red"
+                        <ActionIcon
                           variant="subtle"
+                          color="red"
+                          size="sm"
                           onClick={() => setConfirmingDelete(personId)}
+                          aria-label="Delete contact person"
                         >
-                          Delete
-                        </Button>
+                          🗑
+                        </ActionIcon>
                       </Group>
                     )}
                   </Table.Td>
