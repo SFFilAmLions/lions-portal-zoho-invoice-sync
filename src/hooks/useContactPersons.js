@@ -1,6 +1,10 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useZohoAuth } from './useZohoAuth.jsx'
-import { fetchContactPersons } from '../lib/zohoApi.js'
+import {
+  fetchContactPersons,
+  updateContactPerson,
+  deleteContactPerson,
+} from '../lib/zohoApi.js'
 
 export function useContactPersons(contactId) {
   const { accessToken, orgId, region } = useZohoAuth()
@@ -10,5 +14,38 @@ export function useContactPersons(contactId) {
     queryFn: () => fetchContactPersons(accessToken, orgId, region, contactId),
     enabled: !!contactId && !!accessToken,
     staleTime: 60_000,
+  })
+}
+
+export function useUpdateContactPerson(contactId) {
+  const { accessToken, orgId, region } = useZohoAuth()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ personId, payload }) =>
+      updateContactPerson(
+        accessToken,
+        orgId,
+        region,
+        contactId,
+        personId,
+        payload
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['contactPersons', contactId] })
+    },
+  })
+}
+
+export function useDeleteContactPerson(contactId) {
+  const { accessToken, orgId, region } = useZohoAuth()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ personId }) =>
+      deleteContactPerson(accessToken, orgId, region, contactId, personId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['contactPersons', contactId] })
+    },
   })
 }
