@@ -95,6 +95,65 @@ export async function fetchContactPersons(
 }
 
 /**
+ * Update a contact person via PUT.
+ */
+export async function updateContactPerson(
+  accessToken,
+  orgId,
+  region,
+  contactId,
+  personId,
+  payload
+) {
+  const url = `${BASE_INVOICE(region)}/contacts/${contactId}/contactpersons/${personId}?organization_id=${orgId}`
+
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: {
+      Authorization: `Zoho-oauthtoken ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  })
+
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(
+      `updateContactPerson(${personId}) failed (${res.status}): ${text}`
+    )
+  }
+
+  return res.json()
+}
+
+/**
+ * Delete a contact person.
+ */
+export async function deleteContactPerson(
+  accessToken,
+  orgId,
+  region,
+  contactId,
+  personId
+) {
+  const url = `${BASE_INVOICE(region)}/contacts/${contactId}/contactpersons/${personId}?organization_id=${orgId}`
+
+  const res = await fetch(url, {
+    method: 'DELETE',
+    headers: { Authorization: `Zoho-oauthtoken ${accessToken}` },
+  })
+
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(
+      `deleteContactPerson(${personId}) failed (${res.status}): ${text}`
+    )
+  }
+
+  return res.json()
+}
+
+/**
  * Update a single contact via PUT.
  * Zoho requires the full contact payload — partial updates are not supported.
  */
