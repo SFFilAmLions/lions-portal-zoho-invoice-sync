@@ -83,7 +83,12 @@ PATH="/tmp/mise-shim:$PATH" git commit -m "..."
 
 ### Open a pull request
 
-After pushing, **always open a PR** using the `mcp__github__create_pull_request` tool (the `gh` CLI is not available in this environment):
+After pushing, open a PR against `main`. Use whichever GitHub integration is available in the current environment:
+
+- `gh pr create` (GitHub CLI), or
+- `mcp__github__create_pull_request` (GitHub MCP tool)
+
+PR conventions:
 
 - `owner`: `sffilamlions`, `repo`: `lions-portal-zoho-invoice-sync`
 - `head`: your branch, `base`: `main`
@@ -92,7 +97,7 @@ After pushing, **always open a PR** using the `mcp__github__create_pull_request`
 
 After opening the PR:
 
-1. Check mergeability via `mcp__github__pull_request_read`
+1. Check mergeability (`gh pr view <n> --json mergeable,mergeStateStatus` or `mcp__github__pull_request_read`)
    - If conflicting, rebase the branch onto `main` and resolve conflicts
 2. Monitor CI results; if checks fail, apply a fix, push, and re-check
 3. If a failure cannot be quickly fixed, warn the user and leave the PR open for manual attention
