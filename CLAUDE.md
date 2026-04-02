@@ -60,22 +60,42 @@ Cloudflare Worker at `/proxy/{region}/{...rest}` forwards browser requests to `w
 
 ## Workflow
 
-All development should be done in a **git worktree** on a new branch. Each task should result in a pull request against `main` — never commit directly to `main`.
+All development should be done on a dedicated branch. Each task should result in a pull request against `main` — never commit directly to `main`.
+
+### Branch & commit
 
 ```bash
-git worktree add .claude/worktrees/<branch> -b <branch> main
-# do all work inside the worktree, then:
-gh pr create
+git checkout -b <branch> main   # create branch from main
+# ... implement changes ...
+git add <files>
+git commit -m "feat: ..."       # Conventional Commits format required
+git push -u origin <branch>
 ```
+
+The `commit-msg` Husky hook runs `commitlint` via `mise`. In environments where `mise` is not on `PATH`, add a shim before committing:
+
+```bash
+mkdir -p /tmp/mise-shim
+printf '#!/bin/sh\nshift; shift; exec "$@"\n' > /tmp/mise-shim/mise
+chmod +x /tmp/mise-shim/mise
+PATH="/tmp/mise-shim:$PATH" git commit -m "..."
+```
+
+### Open a pull request
+
+After pushing, **always open a PR** using the `mcp__github__create_pull_request` tool (the `gh` CLI is not available in this environment):
+
+- `owner`: `sffilamlions`, `repo`: `lions-portal-zoho-invoice-sync`
+- `head`: your branch, `base`: `main`
+- Title follows Conventional Commits; body includes a summary and test plan
+- Reference the issue number in the body (`Closes #N`)
 
 After opening the PR:
 
-1. Check mergeability: `gh pr view <number> --json mergeable,mergeStateStatus`
-   - If `CONFLICTING`, rebase the branch onto `main` and resolve conflicts before proceeding
-2. Wait ~30s for CI to register, then watch: `sleep 30 && gh pr checks <number> --watch`
-3. If checks fail, read the logs (`gh run view <run-id> --log-failed`), apply a cursory fix, push, and re-watch
-4. If the failure cannot be quickly fixed, warn the user and leave the PR open for manual attention
-5. Keep the worktree alive until the PR is merged or closed: `git worktree remove .claude/worktrees/<branch>`
+1. Check mergeability via `mcp__github__pull_request_read`
+   - If conflicting, rebase the branch onto `main` and resolve conflicts
+2. Monitor CI results; if checks fail, apply a fix, push, and re-check
+3. If a failure cannot be quickly fixed, warn the user and leave the PR open for manual attention
 
 ## Deployment
 
