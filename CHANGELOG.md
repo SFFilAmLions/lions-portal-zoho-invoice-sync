@@ -1,3 +1,9 @@
+# [1.8.0](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/compare/v1.7.1...v1.8.0) (2026-04-03)
+
+### Features
+
+- edit and delete contact persons ([#24](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/24)) ([#32](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/32)) ([48b2cf6](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/commit/48b2cf6b65e7666cea0afc8907027acc25e71b98))
+
 ## [1.7.1](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/compare/v1.7.0...v1.7.1) (2026-04-01)
 
 ### Bug Fixes
