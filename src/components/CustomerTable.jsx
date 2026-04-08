@@ -26,6 +26,16 @@ import {
 import EditableCell from './EditableCell.jsx'
 import CommitModal from './CommitModal.jsx'
 import ContactPersonsPanel from './ContactPersonsPanel.jsx'
+import CsvImportModal from './CsvImportModal.jsx'
+
+// Human-readable labels for billing sub-fields populated via CSV import
+// (these don't have a column definition in the table)
+const EXTRA_FIELD_LABELS = {
+  billing_city: 'Billing City',
+  billing_state: 'Billing State',
+  billing_zip: 'Billing Zip',
+  billing_country: 'Billing Country',
+}
 
 const PAGE_SIZE_OPTIONS = ['10', '25', '50', '100']
 const DEFAULT_PAGE_SIZE = '25'
@@ -105,6 +115,14 @@ function buildPayload(original, dirtyFields) {
       // already handled above
     } else if (field === 'address') {
       payload.billing_address.address = value
+    } else if (field === 'billing_city') {
+      payload.billing_address.city = value
+    } else if (field === 'billing_state') {
+      payload.billing_address.state = value
+    } else if (field === 'billing_zip') {
+      payload.billing_address.zip = value
+    } else if (field === 'billing_country') {
+      payload.billing_address.country = value
     } else if (field.startsWith('cf_')) {
       const idx = payload.custom_fields.findIndex((f) => f.api_name === field)
       if (idx >= 0) {
@@ -177,6 +195,10 @@ export default function CustomerTable() {
 
   // CommitModal open state
   const [modalOpened, { open: openModal, close: closeModal }] =
+    useDisclosure(false)
+
+  // CsvImportModal open state
+  const [csvModalOpened, { open: openCsvModal, close: closeCsvModal }] =
     useDisclosure(false)
 
   // Column type overrides: { [columnId]: type } — seeded from cookie on mount
@@ -512,6 +534,14 @@ export default function CustomerTable() {
         let original = ''
         if (columnId === 'address') {
           original = contact.billing_address?.address ?? ''
+        } else if (columnId === 'billing_city') {
+          original = contact.billing_address?.city ?? ''
+        } else if (columnId === 'billing_state') {
+          original = contact.billing_address?.state ?? ''
+        } else if (columnId === 'billing_zip') {
+          original = contact.billing_address?.zip ?? ''
+        } else if (columnId === 'billing_country') {
+          original = contact.billing_address?.country ?? ''
         } else if (columnId.startsWith('cf_')) {
           original =
             contact.custom_fields?.find((f) => f.api_name === columnId)
@@ -520,9 +550,10 @@ export default function CustomerTable() {
           original = contact[columnId] ?? ''
         }
 
-        // Resolve human-readable field label from column definitions
+        // Resolve human-readable field label from column definitions or fallback map
         const colDef = columns.find((c) => (c.accessorKey ?? c.id) === columnId)
-        const fieldLabel = colDef?.header ?? columnId
+        const fieldLabel =
+          colDef?.header ?? EXTRA_FIELD_LABELS[columnId] ?? columnId
 
         changes.push({
           contactId,
@@ -641,6 +672,17 @@ export default function CustomerTable() {
     setIsEditMode(true)
   }
 
+  function handleCsvApply(importedDirtyMap) {
+    setDirtyMap((prev) => {
+      const next = { ...prev }
+      for (const [contactId, fields] of Object.entries(importedDirtyMap)) {
+        next[contactId] = { ...(next[contactId] ?? {}), ...fields }
+      }
+      return next
+    })
+    setIsEditMode(true)
+  }
+
   function handlePageSizeChange(value) {
     try {
       localStorage.setItem('customerTable.pageSize', value)
@@ -695,9 +737,19 @@ export default function CustomerTable() {
         </Stack>
         <Group gap="xs" align="center">
           {!isEditMode && (
-            <Button size="sm" variant="light" onClick={enterEditMode}>
-              Edit
-            </Button>
+            <>
+              <Button size="sm" variant="light" onClick={enterEditMode}>
+                Edit
+              </Button>
+              <Button
+                size="sm"
+                variant="light"
+                color="teal"
+                onClick={openCsvModal}
+              >
+                Import from CSV
+              </Button>
+            </>
           )}
           {isEditMode && (
             <>
@@ -899,6 +951,14 @@ export default function CustomerTable() {
             0
           ),
         }}
+      />
+
+      <CsvImportModal
+        opened={csvModalOpened}
+        onClose={closeCsvModal}
+        contacts={contacts}
+        customFields={contacts[0]?.custom_fields ?? []}
+        onApply={handleCsvApply}
       />
     </Stack>
   )
