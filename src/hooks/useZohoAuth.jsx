@@ -90,7 +90,7 @@ export function ZohoAuthProvider({ children }) {
       expiresAt: Date.now() + (parseInt(expires_in) || 3600) * 1000,
       region,
       orgId: orgs[0].organization_id,
-      orgs,
+      orgs: orgs.map(({ organization_id, name }) => ({ organization_id, name })),
     }
 
     saveSession(newSession)
