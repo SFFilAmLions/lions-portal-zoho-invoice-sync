@@ -18,19 +18,26 @@ const SCOPES = [
 
 function loadSession() {
   try {
-    const raw = sessionStorage.getItem(SESSION_KEY)
-    return raw ? JSON.parse(raw) : null
+    const match = document.cookie
+      .split('; ')
+      .find((c) => c.startsWith(SESSION_KEY + '='))
+    if (!match) return null
+    return JSON.parse(decodeURIComponent(match.slice(SESSION_KEY.length + 1)))
   } catch {
     return null
   }
 }
 
 function saveSession(session) {
-  sessionStorage.setItem(SESSION_KEY, JSON.stringify(session))
+  const maxAge = Math.max(
+    0,
+    Math.floor((session.expiresAt - Date.now()) / 1000)
+  )
+  document.cookie = `${SESSION_KEY}=${encodeURIComponent(JSON.stringify(session))}; max-age=${maxAge}; SameSite=Strict; path=/`
 }
 
 function clearSession() {
-  sessionStorage.removeItem(SESSION_KEY)
+  document.cookie = `${SESSION_KEY}=; max-age=0; SameSite=Strict; path=/`
   sessionStorage.removeItem(AUTH_STATE_KEY)
 }
 
