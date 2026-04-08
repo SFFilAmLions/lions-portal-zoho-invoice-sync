@@ -15,6 +15,7 @@ import {
   Text,
 } from '@mantine/core'
 import { useDisclosure } from '@mantine/hooks'
+import { useQueryClient } from '@tanstack/react-query'
 import { useZohoAuth } from '../hooks/useZohoAuth.jsx'
 import { useCustomers, useUpdateContact } from '../hooks/useCustomers.js'
 import EditableCell from './EditableCell.jsx'
@@ -151,6 +152,7 @@ function ColumnHeader({ label, columnId, type, onTypeChange }) {
 
 export default function CustomerTable() {
   const { logout, orgs, orgId } = useZohoAuth()
+  const queryClient = useQueryClient()
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(getStoredPageSize)
   const { data, isLoading, isFetching, isError, error } = useCustomers({
@@ -298,22 +300,30 @@ export default function CustomerTable() {
         id: 'expander',
         header: '',
         meta: { noTypeSelector: true },
-        cell: ({ row }) => (
-          <button
-            onClick={() => toggleExpanded(row.id)}
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              fontSize: '0.7rem',
-              padding: '0 4px',
-              color: '#666',
-            }}
-            aria-label={expandedRows.has(row.id) ? 'Collapse' : 'Expand'}
-          >
-            {expandedRows.has(row.id) ? '▼' : '▶'}
-          </button>
-        ),
+        cell: ({ row }) => {
+          const cached = queryClient.getQueryData(['contactPersons', row.id])
+          const count = cached?.length
+          return (
+            <button
+              onClick={() => toggleExpanded(row.id)}
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: '0.7rem',
+                padding: '0 4px',
+                color: '#666',
+                whiteSpace: 'nowrap',
+              }}
+              aria-label={expandedRows.has(row.id) ? 'Collapse' : 'Expand'}
+            >
+              {expandedRows.has(row.id) ? '▼' : '▶'}
+              {count !== undefined && (
+                <span style={{ marginLeft: 3 }}>{count}</span>
+              )}
+            </button>
+          )
+        },
       },
       {
         accessorKey: 'first_name',
@@ -348,7 +358,7 @@ export default function CustomerTable() {
       },
       ...customFieldColumns,
     ],
-    [customFieldColumns, expandedRows, toggleExpanded]
+    [customFieldColumns, expandedRows, toggleExpanded, queryClient]
   )
 
   /** Collect all enum values for a column from currently-loaded contacts */
@@ -621,6 +631,7 @@ export default function CustomerTable() {
                         <ContactPersonsPanel
                           contactId={row.id}
                           contacts={contacts}
+                          isEditMode={isEditMode}
                         />
                       </Table.Td>
                     </Table.Tr>
