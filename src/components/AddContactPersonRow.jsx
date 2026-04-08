@@ -20,8 +20,14 @@ function splitName(contactName) {
   }
 }
 
-export default function AddContactPersonRow({ contactId, contacts, onCancel, colSpan }) {
-  const { mutateAsync: createPerson, isPending } = useCreateContactPerson(contactId)
+export default function AddContactPersonRow({
+  contactId,
+  contacts,
+  onCancel,
+  colSpan,
+}) {
+  const { mutateAsync: createPerson, isPending } =
+    useCreateContactPerson(contactId)
   const combobox = useCombobox({
     onDropdownClose: () => combobox.resetSelectedOption(),
   })
@@ -110,14 +116,49 @@ export default function AddContactPersonRow({ contactId, contacts, onCancel, col
             </Combobox.Dropdown>
           </Combobox>
 
-          <TextInput label="First Name" size="xs" style={{ width: 100 }} value={fields.first_name} onChange={(e) => setField('first_name', e.target.value)} />
-          <TextInput label="Last Name" size="xs" style={{ width: 100 }} value={fields.last_name} onChange={(e) => setField('last_name', e.target.value)} />
-          <TextInput label="Email" size="xs" style={{ width: 160 }} value={fields.email} onChange={(e) => setField('email', e.target.value)} />
-          <TextInput label="Phone" size="xs" style={{ width: 100 }} value={fields.phone} onChange={(e) => setField('phone', e.target.value)} />
-          <TextInput label="Mobile" size="xs" style={{ width: 100 }} value={fields.mobile} onChange={(e) => setField('mobile', e.target.value)} />
+          <TextInput
+            label="First Name"
+            size="xs"
+            style={{ width: 100 }}
+            value={fields.first_name}
+            onChange={(e) => setField('first_name', e.target.value)}
+          />
+          <TextInput
+            label="Last Name"
+            size="xs"
+            style={{ width: 100 }}
+            value={fields.last_name}
+            onChange={(e) => setField('last_name', e.target.value)}
+          />
+          <TextInput
+            label="Email"
+            size="xs"
+            style={{ width: 160 }}
+            value={fields.email}
+            onChange={(e) => setField('email', e.target.value)}
+          />
+          <TextInput
+            label="Phone"
+            size="xs"
+            style={{ width: 100 }}
+            value={fields.phone}
+            onChange={(e) => setField('phone', e.target.value)}
+          />
+          <TextInput
+            label="Mobile"
+            size="xs"
+            style={{ width: 100 }}
+            value={fields.mobile}
+            onChange={(e) => setField('mobile', e.target.value)}
+          />
 
           <Group gap={4} align="flex-end" style={{ paddingBottom: 1 }}>
-            <Button size="compact-xs" color="orange" onClick={handleSave} loading={isPending}>
+            <Button
+              size="compact-xs"
+              color="orange"
+              onClick={handleSave}
+              loading={isPending}
+            >
               Save
             </Button>
             <Button size="compact-xs" variant="default" onClick={onCancel}>

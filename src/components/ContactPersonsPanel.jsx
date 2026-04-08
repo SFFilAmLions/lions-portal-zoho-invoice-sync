@@ -91,7 +91,11 @@ export default function ContactPersonsPanel({ contactId, contacts }) {
       ) : !persons?.length && !showAdd ? (
         <Text size="xs" c="dimmed">
           No contact persons.{' '}
-          <Button variant="subtle" size="compact-xs" onClick={() => setShowAdd(true)}>
+          <Button
+            variant="subtle"
+            size="compact-xs"
+            onClick={() => setShowAdd(true)}
+          >
             + Add
           </Button>
         </Text>
@@ -266,7 +270,11 @@ export default function ContactPersonsPanel({ contactId, contacts }) {
             <Table.Tfoot>
               <Table.Tr>
                 <Table.Td colSpan={8}>
-                  <Button variant="subtle" size="compact-xs" onClick={() => setShowAdd(true)}>
+                  <Button
+                    variant="subtle"
+                    size="compact-xs"
+                    onClick={() => setShowAdd(true)}
+                  >
                     + Add
                   </Button>
                 </Table.Td>
