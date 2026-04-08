@@ -618,7 +618,10 @@ export default function CustomerTable() {
                         colSpan={columns.length}
                         style={{ padding: 0, background: '#f9fafb' }}
                       >
-                        <ContactPersonsPanel contactId={row.id} />
+                        <ContactPersonsPanel
+                          contactId={row.id}
+                          contacts={contacts}
+                        />
                       </Table.Td>
                     </Table.Tr>
                   ),

@@ -127,6 +127,35 @@ export async function updateContactPerson(
 }
 
 /**
+ * Create a new contact person via POST.
+ */
+export async function createContactPerson(
+  accessToken,
+  orgId,
+  region,
+  contactId,
+  payload
+) {
+  const url = `${BASE_INVOICE(region)}/contacts/${contactId}/contactpersons?organization_id=${orgId}`
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Zoho-oauthtoken ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  })
+
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(`createContactPerson failed (${res.status}): ${text}`)
+  }
+
+  return res.json()
+}
+
+/**
  * Delete a contact person.
  */
 export async function deleteContactPerson(
