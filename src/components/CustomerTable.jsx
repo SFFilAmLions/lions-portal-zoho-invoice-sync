@@ -18,6 +18,11 @@ import { useDisclosure } from '@mantine/hooks'
 import { useQueryClient } from '@tanstack/react-query'
 import { useZohoAuth } from '../hooks/useZohoAuth.jsx'
 import { useCustomers, useUpdateContact } from '../hooks/useCustomers.js'
+import {
+  updateContactPerson,
+  createContactPerson,
+  deleteContactPerson,
+} from '../lib/zohoApi.js'
 import EditableCell from './EditableCell.jsx'
 import CommitModal from './CommitModal.jsx'
 import ContactPersonsPanel from './ContactPersonsPanel.jsx'
@@ -151,7 +156,7 @@ function ColumnHeader({ label, columnId, type, onTypeChange }) {
 }
 
 export default function CustomerTable() {
-  const { logout, orgs, orgId } = useZohoAuth()
+  const { logout, orgs, orgId, accessToken, region } = useZohoAuth()
   const queryClient = useQueryClient()
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(getStoredPageSize)
@@ -179,6 +184,14 @@ export default function CustomerTable() {
 
   // expandedRows: Set of contact_id strings currently expanded
   const [expandedRows, setExpandedRows] = useState(new Set())
+
+  // Pending contact person mutations — all staged until global Commit
+  // { [contactId]: { [personId]: { [field]: newValue } } }
+  const [pendingPersonEdits, setPendingPersonEdits] = useState({})
+  // { [contactId]: Array<{ _tempId, first_name, last_name, email, phone, mobile }> }
+  const [pendingPersonAdds, setPendingPersonAdds] = useState({})
+  // { [contactId]: personId[] }
+  const [pendingPersonDeletes, setPendingPersonDeletes] = useState({})
 
   const markDirty = useCallback((contactId, columnId, value) => {
     setDirtyMap((prev) => ({
@@ -249,6 +262,21 @@ export default function CustomerTable() {
     [dirtyMap]
   )
 
+  const personOpCount = useMemo(() => {
+    const edits = Object.values(pendingPersonEdits)
+      .flatMap(Object.values)
+      .reduce((s, f) => s + Object.keys(f).length, 0)
+    const adds = Object.values(pendingPersonAdds).reduce(
+      (s, a) => s + a.length,
+      0
+    )
+    const dels = Object.values(pendingPersonDeletes).reduce(
+      (s, d) => s + d.length,
+      0
+    )
+    return edits + adds + dels
+  }, [pendingPersonEdits, pendingPersonAdds, pendingPersonDeletes])
+
   const toggleExpanded = useCallback((contactId) => {
     setExpandedRows((prev) => {
       const next = new Set(prev)
@@ -257,6 +285,78 @@ export default function CustomerTable() {
       } else {
         next.add(contactId)
       }
+      return next
+    })
+  }, [])
+
+  const markPersonField = useCallback((contactId, personId, field, value) => {
+    setPendingPersonEdits((prev) => ({
+      ...prev,
+      [contactId]: {
+        ...(prev[contactId] ?? {}),
+        [personId]: { ...(prev[contactId]?.[personId] ?? {}), [field]: value },
+      },
+    }))
+  }, [])
+
+  const clearPersonField = useCallback((contactId, personId, field) => {
+    setPendingPersonEdits((prev) => {
+      const persons = { ...(prev[contactId] ?? {}) }
+      const fields = { ...(persons[personId] ?? {}) }
+      delete fields[field]
+      if (Object.keys(fields).length === 0) delete persons[personId]
+      else persons[personId] = fields
+      const next = { ...prev }
+      if (Object.keys(persons).length === 0) delete next[contactId]
+      else next[contactId] = persons
+      return next
+    })
+  }, [])
+
+  const revertPersonRow = useCallback((contactId, personId) => {
+    setPendingPersonEdits((prev) => {
+      const persons = { ...(prev[contactId] ?? {}) }
+      delete persons[personId]
+      const next = { ...prev }
+      if (Object.keys(persons).length === 0) delete next[contactId]
+      else next[contactId] = persons
+      return next
+    })
+  }, [])
+
+  const addPendingPerson = useCallback((contactId, draft) => {
+    setPendingPersonAdds((prev) => ({
+      ...prev,
+      [contactId]: [
+        ...(prev[contactId] ?? []),
+        { ...draft, _tempId: crypto.randomUUID() },
+      ],
+    }))
+  }, [])
+
+  const cancelPendingAdd = useCallback((contactId, tempId) => {
+    setPendingPersonAdds((prev) => {
+      const next = { ...prev }
+      next[contactId] = (next[contactId] ?? []).filter(
+        (d) => d._tempId !== tempId
+      )
+      if (next[contactId].length === 0) delete next[contactId]
+      return next
+    })
+  }, [])
+
+  const markPersonDelete = useCallback((contactId, personId) => {
+    setPendingPersonDeletes((prev) => ({
+      ...prev,
+      [contactId]: [...new Set([...(prev[contactId] ?? []), personId])],
+    }))
+  }, [])
+
+  const unmarkPersonDelete = useCallback((contactId, personId) => {
+    setPendingPersonDeletes((prev) => {
+      const next = { ...prev }
+      next[contactId] = (next[contactId] ?? []).filter((id) => id !== personId)
+      if (next[contactId].length === 0) delete next[contactId]
       return next
     })
   }, [])
@@ -436,7 +536,7 @@ export default function CustomerTable() {
     return changes
   }, [dirtyMap, contacts, columns])
 
-  // Called by CommitModal — saves all dirty contacts and returns a Map of results
+  // Called by CommitModal — saves all dirty contacts and person mutations
   async function handleCommit() {
     const entries = Object.entries(dirtyMap)
     const results = await Promise.allSettled(
@@ -458,6 +558,73 @@ export default function CustomerTable() {
       })
       return next
     })
+
+    // Commit pending contact person operations
+    const affectedContactIds = new Set()
+
+    for (const [contactId, persons] of Object.entries(pendingPersonEdits)) {
+      const cachedPersons =
+        queryClient.getQueryData(['contactPersons', contactId]) ?? []
+      await Promise.allSettled(
+        Object.entries(persons).map(([personId, fields]) => {
+          const original = cachedPersons.find(
+            (p) => p.contact_person_id === personId
+          )
+          if (!original) return Promise.resolve()
+          const payload = {
+            first_name: fields.first_name ?? original.first_name ?? '',
+            last_name: fields.last_name ?? original.last_name ?? '',
+            email: fields.email ?? original.email ?? '',
+            phone: fields.phone ?? original.phone ?? '',
+            mobile: fields.mobile ?? original.mobile ?? '',
+            is_primary_contact:
+              fields.is_primary_contact ?? original.is_primary_contact ?? false,
+            enable_portal:
+              fields.enable_portal ?? original.enable_portal ?? false,
+          }
+          return updateContactPerson(
+            accessToken,
+            orgId,
+            region,
+            contactId,
+            personId,
+            payload
+          )
+        })
+      )
+      affectedContactIds.add(contactId)
+    }
+
+    for (const [contactId, drafts] of Object.entries(pendingPersonAdds)) {
+      await Promise.allSettled(
+        drafts.map((d) =>
+          createContactPerson(accessToken, orgId, region, contactId, {
+            first_name: d.first_name,
+            last_name: d.last_name,
+            email: d.email,
+            phone: d.phone,
+            mobile: d.mobile,
+          })
+        )
+      )
+      affectedContactIds.add(contactId)
+    }
+
+    for (const [contactId, personIds] of Object.entries(pendingPersonDeletes)) {
+      await Promise.allSettled(
+        personIds.map((personId) =>
+          deleteContactPerson(accessToken, orgId, region, contactId, personId)
+        )
+      )
+      affectedContactIds.add(contactId)
+    }
+
+    affectedContactIds.forEach((cid) =>
+      queryClient.invalidateQueries({ queryKey: ['contactPersons', cid] })
+    )
+    setPendingPersonEdits({})
+    setPendingPersonAdds({})
+    setPendingPersonDeletes({})
 
     // Return a Map of contactId → Error|null for the modal to display
     const resultMap = new Map()
@@ -488,15 +655,22 @@ export default function CustomerTable() {
   function cancelEditMode() {
     setDirtyMap({})
     setValidationErrors({})
+    setPendingPersonEdits({})
+    setPendingPersonAdds({})
+    setPendingPersonDeletes({})
     setIsEditMode(false)
   }
 
   // After CommitModal closes following a successful save, exit edit mode
   function handleModalClose() {
     closeModal()
-    // If all changes were saved (dirtyMap is empty), exit edit mode
-    // If there were errors, stay in edit mode so the user can retry
-    if (Object.keys(dirtyMap).length === 0) {
+    // If all changes were saved, exit edit mode
+    if (
+      Object.keys(dirtyMap).length === 0 &&
+      Object.keys(pendingPersonEdits).length === 0 &&
+      Object.keys(pendingPersonAdds).length === 0 &&
+      Object.keys(pendingPersonDeletes).length === 0
+    ) {
       setIsEditMode(false)
     }
   }
@@ -527,9 +701,10 @@ export default function CustomerTable() {
           )}
           {isEditMode && (
             <>
-              {dirtyCount > 0 && (
+              {dirtyCount + personOpCount > 0 && (
                 <Badge color="yellow" variant="light">
-                  {dirtyCount} unsaved change{dirtyCount !== 1 ? 's' : ''}
+                  {dirtyCount + personOpCount} unsaved change
+                  {dirtyCount + personOpCount !== 1 ? 's' : ''}
                 </Badge>
               )}
               <Button variant="default" size="sm" onClick={cancelEditMode}>
@@ -539,7 +714,11 @@ export default function CustomerTable() {
                 size="sm"
                 color="orange"
                 onClick={openModal}
-                disabled={dirtyCount === 0 || isFetching || hasValidationErrors}
+                disabled={
+                  dirtyCount + personOpCount === 0 ||
+                  isFetching ||
+                  hasValidationErrors
+                }
               >
                 Commit
               </Button>
@@ -634,6 +813,26 @@ export default function CustomerTable() {
                           contactId={row.id}
                           contacts={contacts}
                           isEditMode={isEditMode}
+                          pendingEdits={pendingPersonEdits[row.id] ?? {}}
+                          pendingAdds={pendingPersonAdds[row.id] ?? []}
+                          pendingDeletes={pendingPersonDeletes[row.id] ?? []}
+                          onMarkField={(pId, field, val) =>
+                            markPersonField(row.id, pId, field, val)
+                          }
+                          onClearField={(pId, field) =>
+                            clearPersonField(row.id, pId, field)
+                          }
+                          onRevertRow={(pId) => revertPersonRow(row.id, pId)}
+                          onAddPerson={(draft) =>
+                            addPendingPerson(row.id, draft)
+                          }
+                          onCancelAdd={(tempId) =>
+                            cancelPendingAdd(row.id, tempId)
+                          }
+                          onMarkDelete={(pId) => markPersonDelete(row.id, pId)}
+                          onUnmarkDelete={(pId) =>
+                            unmarkPersonDelete(row.id, pId)
+                          }
                         />
                       </Table.Td>
                     </Table.Tr>
@@ -687,6 +886,19 @@ export default function CustomerTable() {
         onClose={handleModalClose}
         pendingChanges={pendingChanges}
         onConfirm={handleCommit}
+        personOpSummary={{
+          edits: Object.values(pendingPersonEdits)
+            .flatMap(Object.values)
+            .reduce((s, f) => s + Object.keys(f).length, 0),
+          adds: Object.values(pendingPersonAdds).reduce(
+            (s, a) => s + a.length,
+            0
+          ),
+          deletes: Object.values(pendingPersonDeletes).reduce(
+            (s, d) => s + d.length,
+            0
+          ),
+        }}
       />
     </Stack>
   )

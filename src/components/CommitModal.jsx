@@ -25,12 +25,14 @@ import {
  *   }>}
  *   onConfirm    {() => Promise<Map<string, Error|null>>}
  *                resolves with a Map of contactId → Error (null means success)
+ *   personOpSummary {edits: number, adds: number, deletes: number}
  */
 export default function CommitModal({
   opened,
   onClose,
   pendingChanges,
   onConfirm,
+  personOpSummary,
 }) {
   const [saving, setSaving] = useState(false)
   const [errors, setErrors] = useState({}) // { [contactId]: string }
@@ -103,6 +105,34 @@ export default function CommitModal({
             ))}
           </Table.Tbody>
         </Table>
+
+        {(personOpSummary?.edits > 0 ||
+          personOpSummary?.adds > 0 ||
+          personOpSummary?.deletes > 0) && (
+          <Stack gap={4}>
+            <Text size="sm" fw={600}>
+              Contact person operations
+            </Text>
+            {personOpSummary.edits > 0 && (
+              <Text size="sm" c="dimmed">
+                • {personOpSummary.edits} field edit
+                {personOpSummary.edits !== 1 ? 's' : ''}
+              </Text>
+            )}
+            {personOpSummary.adds > 0 && (
+              <Text size="sm" c="dimmed">
+                • {personOpSummary.adds} addition
+                {personOpSummary.adds !== 1 ? 's' : ''}
+              </Text>
+            )}
+            {personOpSummary.deletes > 0 && (
+              <Text size="sm" c="dimmed">
+                • {personOpSummary.deletes} deletion
+                {personOpSummary.deletes !== 1 ? 's' : ''}
+              </Text>
+            )}
+          </Stack>
+        )}
 
         {Object.entries(errors).map(([contactId, msg]) => {
           const contact = pendingChanges.find((c) => c.contactId === contactId)

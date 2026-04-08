@@ -8,7 +8,6 @@ import {
   TextInput,
   useCombobox,
 } from '@mantine/core'
-import { useCreateContactPerson } from '../hooks/useContactPersons.js'
 
 function splitName(contactName) {
   if (!contactName) return { first_name: '', last_name: '' }
@@ -21,13 +20,11 @@ function splitName(contactName) {
 }
 
 export default function AddContactPersonRow({
-  contactId,
   contacts,
+  onSave,
   onCancel,
   colSpan,
 }) {
-  const { mutateAsync: createPerson, isPending } =
-    useCreateContactPerson(contactId)
   const combobox = useCombobox({
     onDropdownClose: () => combobox.resetSelectedOption(),
   })
@@ -62,8 +59,8 @@ export default function AddContactPersonRow({
     setFields((prev) => ({ ...prev, [key]: value }))
   }
 
-  async function handleSave() {
-    await createPerson({
+  function handleSave() {
+    onSave({
       first_name: fields.first_name,
       last_name: fields.last_name,
       email: fields.email,
@@ -153,13 +150,8 @@ export default function AddContactPersonRow({
           />
 
           <Group gap={4} align="flex-end" style={{ paddingBottom: 1 }}>
-            <Button
-              size="compact-xs"
-              color="orange"
-              onClick={handleSave}
-              loading={isPending}
-            >
-              Save
+            <Button size="compact-xs" color="orange" onClick={handleSave}>
+              Add
             </Button>
             <Button size="compact-xs" variant="default" onClick={onCancel}>
               Cancel
