@@ -507,7 +507,7 @@ export default function CustomerTable() {
   const orgName = orgs.find((o) => o.organization_id === orgId)?.name ?? orgId
 
   return (
-    <Stack p="lg" maw={1200} mx="auto" gap="md">
+    <Stack p="lg" gap="md">
       <Group justify="space-between" align="flex-start">
         <Stack gap={4}>
           <Text fw={700} size="xl">
