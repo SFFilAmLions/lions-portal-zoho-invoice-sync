@@ -15,7 +15,10 @@ import {
 } from '../hooks/useContactPersons.js'
 import AddContactPersonRow from './AddContactPersonRow.jsx'
 
-function PersonCell({ value, isDirty, onChange }) {
+function PersonCell({ value, isDirty, onChange, isEditMode }) {
+  if (!isEditMode) {
+    return <Text size="xs">{value}</Text>
+  }
   return (
     <TextInput
       value={value}
@@ -31,7 +34,11 @@ function PersonCell({ value, isDirty, onChange }) {
   )
 }
 
-export default function ContactPersonsPanel({ contactId, contacts }) {
+export default function ContactPersonsPanel({
+  contactId,
+  contacts,
+  isEditMode,
+}) {
   const { data: persons, isLoading } = useContactPersons(contactId)
   const { mutateAsync: savePerson } = useUpdateContactPerson(contactId)
   const { mutateAsync: removePerson } = useDeleteContactPerson(contactId)
@@ -79,6 +86,10 @@ export default function ContactPersonsPanel({ contactId, contacts }) {
     setConfirmingDelete(null)
   }
 
+  // Number of columns: 5 text + Primary + Notify + Actions = 8
+  // In view mode the Actions column is hidden, so colSpan differs
+  const colCount = isEditMode ? 8 : 7
+
   return (
     <div style={{ padding: '0.5rem 1rem 0.75rem 2.5rem' }}>
       <Text size="xs" fw={600} c="dimmed" mb={6}>
@@ -91,13 +102,15 @@ export default function ContactPersonsPanel({ contactId, contacts }) {
       ) : !persons?.length && !showAdd ? (
         <Text size="xs" c="dimmed">
           No contact persons.{' '}
-          <Button
-            variant="subtle"
-            size="compact-xs"
-            onClick={() => setShowAdd(true)}
-          >
-            + Add
-          </Button>
+          {isEditMode && (
+            <Button
+              variant="subtle"
+              size="compact-xs"
+              onClick={() => setShowAdd(true)}
+            >
+              + Add
+            </Button>
+          )}
         </Text>
       ) : (
         <Table fz="xs" withTableBorder withColumnBorders>
@@ -110,7 +123,7 @@ export default function ContactPersonsPanel({ contactId, contacts }) {
               <Table.Th>Mobile</Table.Th>
               <Table.Th>Primary</Table.Th>
               <Table.Th>Notify</Table.Th>
-              <Table.Th />
+              {isEditMode && <Table.Th />}
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
@@ -139,6 +152,7 @@ export default function ContactPersonsPanel({ contactId, contacts }) {
                       }
                       isDirty={dirty.first_name !== undefined}
                       onChange={(v) => markDirty(personId, 'first_name', v)}
+                      isEditMode={isEditMode}
                     />
                   </Table.Td>
                   <Table.Td>
@@ -150,6 +164,7 @@ export default function ContactPersonsPanel({ contactId, contacts }) {
                       }
                       isDirty={dirty.last_name !== undefined}
                       onChange={(v) => markDirty(personId, 'last_name', v)}
+                      isEditMode={isEditMode}
                     />
                   </Table.Td>
                   <Table.Td>
@@ -161,6 +176,7 @@ export default function ContactPersonsPanel({ contactId, contacts }) {
                       }
                       isDirty={dirty.email !== undefined}
                       onChange={(v) => markDirty(personId, 'email', v)}
+                      isEditMode={isEditMode}
                     />
                   </Table.Td>
                   <Table.Td>
@@ -172,6 +188,7 @@ export default function ContactPersonsPanel({ contactId, contacts }) {
                       }
                       isDirty={dirty.phone !== undefined}
                       onChange={(v) => markDirty(personId, 'phone', v)}
+                      isEditMode={isEditMode}
                     />
                   </Table.Td>
                   <Table.Td>
@@ -183,93 +200,104 @@ export default function ContactPersonsPanel({ contactId, contacts }) {
                       }
                       isDirty={dirty.mobile !== undefined}
                       onChange={(v) => markDirty(personId, 'mobile', v)}
+                      isEditMode={isEditMode}
                     />
                   </Table.Td>
                   <Table.Td ta="center">
-                    <ActionIcon
-                      variant="subtle"
-                      size="sm"
-                      color={isPrimary ? 'yellow' : 'gray'}
-                      onClick={() =>
-                        markDirty(personId, 'is_primary_contact', !isPrimary)
-                      }
-                      aria-label="Toggle primary contact"
-                    >
-                      {isPrimary ? '★' : '☆'}
-                    </ActionIcon>
+                    {isEditMode ? (
+                      <ActionIcon
+                        variant="subtle"
+                        size="sm"
+                        color={isPrimary ? 'yellow' : 'gray'}
+                        onClick={() =>
+                          markDirty(personId, 'is_primary_contact', !isPrimary)
+                        }
+                        aria-label="Toggle primary contact"
+                      >
+                        {isPrimary ? '★' : '☆'}
+                      </ActionIcon>
+                    ) : (
+                      <Text size="xs">{isPrimary ? '★' : ''}</Text>
+                    )}
                   </Table.Td>
                   <Table.Td ta="center">
                     <Checkbox
                       checked={enablePortal}
-                      onChange={(e) =>
-                        markDirty(
-                          personId,
-                          'enable_portal',
-                          e.currentTarget.checked
-                        )
+                      onChange={
+                        isEditMode
+                          ? (e) =>
+                              markDirty(
+                                personId,
+                                'enable_portal',
+                                e.currentTarget.checked
+                              )
+                          : undefined
                       }
+                      readOnly={!isEditMode}
                       size="xs"
                     />
                   </Table.Td>
-                  <Table.Td>
-                    {isConfirming ? (
-                      <Group gap={4} wrap="nowrap">
-                        <Text size="xs" c="red">
-                          Delete?
-                        </Text>
-                        <Button
-                          size="compact-xs"
-                          color="red"
-                          onClick={() => handleDelete(personId)}
-                        >
-                          Yes
-                        </Button>
-                        <Button
-                          size="compact-xs"
-                          variant="default"
-                          onClick={() => setConfirmingDelete(null)}
-                        >
-                          No
-                        </Button>
-                      </Group>
-                    ) : (
-                      <Group gap={4} wrap="nowrap">
-                        {isDirtyRow && (
+                  {isEditMode && (
+                    <Table.Td>
+                      {isConfirming ? (
+                        <Group gap={4} wrap="nowrap">
+                          <Text size="xs" c="red">
+                            Delete?
+                          </Text>
                           <Button
                             size="compact-xs"
-                            color="orange"
-                            onClick={() => handleSave(p)}
+                            color="red"
+                            onClick={() => handleDelete(personId)}
                           >
-                            Save
+                            Yes
                           </Button>
-                        )}
-                        <Button
-                          size="compact-xs"
-                          color="red"
-                          variant="subtle"
-                          onClick={() => setConfirmingDelete(personId)}
-                        >
-                          Delete
-                        </Button>
-                      </Group>
-                    )}
-                  </Table.Td>
+                          <Button
+                            size="compact-xs"
+                            variant="default"
+                            onClick={() => setConfirmingDelete(null)}
+                          >
+                            No
+                          </Button>
+                        </Group>
+                      ) : (
+                        <Group gap={4} wrap="nowrap">
+                          {isDirtyRow && (
+                            <Button
+                              size="compact-xs"
+                              color="orange"
+                              onClick={() => handleSave(p)}
+                            >
+                              Save
+                            </Button>
+                          )}
+                          <Button
+                            size="compact-xs"
+                            color="red"
+                            variant="subtle"
+                            onClick={() => setConfirmingDelete(personId)}
+                          >
+                            Delete
+                          </Button>
+                        </Group>
+                      )}
+                    </Table.Td>
+                  )}
                 </Table.Tr>
               )
             })}
-            {showAdd && (
+            {isEditMode && showAdd && (
               <AddContactPersonRow
                 contactId={contactId}
                 contacts={contacts}
-                colSpan={8}
+                colSpan={colCount}
                 onCancel={() => setShowAdd(false)}
               />
             )}
           </Table.Tbody>
-          {!showAdd && (
+          {isEditMode && !showAdd && (
             <Table.Tfoot>
               <Table.Tr>
-                <Table.Td colSpan={8}>
+                <Table.Td colSpan={colCount}>
                   <Button
                     variant="subtle"
                     size="compact-xs"
