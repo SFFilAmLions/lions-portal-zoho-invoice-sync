@@ -53,7 +53,7 @@ function PersonCell({
           onClick={onRevert}
           aria-label="Revert"
         >
-          ×
+          ↩
         </ActionIcon>
       )}
     </Group>
@@ -239,7 +239,7 @@ export default function ContactPersonsPanel({
                             }
                             aria-label="Revert"
                           >
-                            ×
+                            ↩
                           </ActionIcon>
                         )}
                       </Group>
@@ -276,7 +276,7 @@ export default function ContactPersonsPanel({
                             }
                             aria-label="Revert"
                           >
-                            ×
+                            ↩
                           </ActionIcon>
                         )}
                     </Group>
