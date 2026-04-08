@@ -302,7 +302,10 @@ export default function CustomerTable() {
         meta: { noTypeSelector: true },
         cell: ({ row }) => {
           const cached = queryClient.getQueryData(['contactPersons', row.id])
-          const count = cached?.length
+          // cached takes precedence (accurate after first expand); fall back to
+          // the count Zoho returns inline with the contacts list response
+          const count =
+            cached?.length ?? row.original.contact_persons?.length
           return (
             <button
               onClick={() => toggleExpanded(row.id)}
