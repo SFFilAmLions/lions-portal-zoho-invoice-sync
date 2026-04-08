@@ -1,6 +1,7 @@
-import { useState, useCallback } from 'react'
+import { useState } from 'react'
 import {
   ActionIcon,
+  Badge,
   Button,
   Checkbox,
   Group,
@@ -8,16 +9,27 @@ import {
   Text,
   TextInput,
 } from '@mantine/core'
-import {
-  useContactPersons,
-  useUpdateContactPerson,
-  useDeleteContactPerson,
-} from '../hooks/useContactPersons.js'
+import { useContactPersons } from '../hooks/useContactPersons.js'
 import AddContactPersonRow from './AddContactPersonRow.jsx'
 
-function PersonCell({ value, isDirty, onChange, onRevert, isEditMode }) {
-  if (!isEditMode) {
-    return <Text size="xs">{value}</Text>
+function PersonCell({
+  value,
+  isDirty,
+  onChange,
+  onRevert,
+  isEditMode,
+  isDeleted,
+}) {
+  if (!isEditMode || isDeleted) {
+    return (
+      <Text
+        size="xs"
+        td={isDeleted ? 'line-through' : undefined}
+        c={isDeleted ? 'dimmed' : undefined}
+      >
+        {value}
+      </Text>
+    )
   }
   return (
     <Group gap={4} wrap="nowrap">
@@ -41,7 +53,7 @@ function PersonCell({ value, isDirty, onChange, onRevert, isEditMode }) {
           onClick={onRevert}
           aria-label="Revert"
         >
-          ×
+          ↩
         </ActionIcon>
       )}
     </Group>
@@ -52,68 +64,26 @@ export default function ContactPersonsPanel({
   contactId,
   contacts,
   isEditMode,
+  pendingEdits,
+  pendingAdds,
+  pendingDeletes,
+  onMarkField,
+  onClearField,
+  onRevertRow,
+  onAddPerson,
+  onCancelAdd,
+  onMarkDelete,
+  onUnmarkDelete,
 }) {
   const { data: persons, isLoading } = useContactPersons(contactId)
-  const { mutateAsync: savePerson } = useUpdateContactPerson(contactId)
-  const { mutateAsync: removePerson } = useDeleteContactPerson(contactId)
-
-  // personDirtyMap: { [personId]: { [field]: newValue } }
-  const [personDirtyMap, setPersonDirtyMap] = useState({})
-  // confirmingDelete: personId awaiting confirmation, or null
-  const [confirmingDelete, setConfirmingDelete] = useState(null)
   const [showAdd, setShowAdd] = useState(false)
-
-  const markDirty = useCallback((personId, field, value) => {
-    setPersonDirtyMap((prev) => ({
-      ...prev,
-      [personId]: { ...(prev[personId] ?? {}), [field]: value },
-    }))
-  }, [])
-
-  const revertField = useCallback((personId, field) => {
-    setPersonDirtyMap((prev) => {
-      const fields = { ...(prev[personId] ?? {}) }
-      delete fields[field]
-      const next = { ...prev }
-      if (Object.keys(fields).length === 0) delete next[personId]
-      else next[personId] = fields
-      return next
-    })
-  }, [])
-
-  const revertRow = useCallback((personId) => {
-    setPersonDirtyMap((prev) => {
-      const next = { ...prev }
-      delete next[personId]
-      return next
-    })
-  }, [])
-
-  async function handleSave(person) {
-    const personId = person.contact_person_id
-    const dirty = personDirtyMap[personId] ?? {}
-    const payload = {
-      first_name: dirty.first_name ?? person.first_name ?? '',
-      last_name: dirty.last_name ?? person.last_name ?? '',
-      email: dirty.email ?? person.email ?? '',
-      phone: dirty.phone ?? person.phone ?? '',
-      mobile: dirty.mobile ?? person.mobile ?? '',
-      is_primary_contact:
-        dirty.is_primary_contact ?? person.is_primary_contact ?? false,
-      enable_portal: dirty.enable_portal ?? person.enable_portal ?? false,
-    }
-    await savePerson({ personId, payload })
-    revertRow(personId)
-  }
-
-  async function handleDelete(personId) {
-    await removePerson({ personId })
-    setConfirmingDelete(null)
-  }
 
   // Number of columns: 5 text + Primary + Notify + Actions = 8
   // In view mode the Actions column is hidden, so colSpan differs
   const colCount = isEditMode ? 8 : 7
+
+  const hasRows =
+    (persons?.length ?? 0) > 0 || pendingAdds.length > 0 || showAdd
 
   return (
     <div style={{ padding: '0.5rem 1rem 0.75rem 2.5rem' }}>
@@ -124,7 +94,7 @@ export default function ContactPersonsPanel({
         <Text size="xs" c="dimmed">
           Loading…
         </Text>
-      ) : !persons?.length && !showAdd ? (
+      ) : !hasRows ? (
         <Text size="xs" c="dimmed">
           No contact persons.{' '}
           {isEditMode && (
@@ -152,10 +122,11 @@ export default function ContactPersonsPanel({
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
-            {persons.map((p) => {
+            {persons?.map((p) => {
               const personId = p.contact_person_id
-              const dirty = personDirtyMap[personId] ?? {}
+              const dirty = pendingEdits[personId] ?? {}
               const isDirtyRow = Object.keys(dirty).length > 0
+              const isDeleted = pendingDeletes.includes(personId)
               const isPrimary =
                 dirty.is_primary_contact !== undefined
                   ? dirty.is_primary_contact
@@ -164,10 +135,12 @@ export default function ContactPersonsPanel({
                 dirty.enable_portal !== undefined
                   ? dirty.enable_portal
                   : (p.enable_portal ?? false)
-              const isConfirming = confirmingDelete === personId
 
               return (
-                <Table.Tr key={personId}>
+                <Table.Tr
+                  key={personId}
+                  style={isDeleted ? { opacity: 0.5 } : undefined}
+                >
                   <Table.Td>
                     <PersonCell
                       value={
@@ -176,9 +149,10 @@ export default function ContactPersonsPanel({
                           : (p.first_name ?? '')
                       }
                       isDirty={dirty.first_name !== undefined}
-                      onChange={(v) => markDirty(personId, 'first_name', v)}
-                      onRevert={() => revertField(personId, 'first_name')}
+                      onChange={(v) => onMarkField(personId, 'first_name', v)}
+                      onRevert={() => onClearField(personId, 'first_name')}
                       isEditMode={isEditMode}
+                      isDeleted={isDeleted}
                     />
                   </Table.Td>
                   <Table.Td>
@@ -189,9 +163,10 @@ export default function ContactPersonsPanel({
                           : (p.last_name ?? '')
                       }
                       isDirty={dirty.last_name !== undefined}
-                      onChange={(v) => markDirty(personId, 'last_name', v)}
-                      onRevert={() => revertField(personId, 'last_name')}
+                      onChange={(v) => onMarkField(personId, 'last_name', v)}
+                      onRevert={() => onClearField(personId, 'last_name')}
                       isEditMode={isEditMode}
+                      isDeleted={isDeleted}
                     />
                   </Table.Td>
                   <Table.Td>
@@ -202,9 +177,10 @@ export default function ContactPersonsPanel({
                           : (p.email ?? '')
                       }
                       isDirty={dirty.email !== undefined}
-                      onChange={(v) => markDirty(personId, 'email', v)}
-                      onRevert={() => revertField(personId, 'email')}
+                      onChange={(v) => onMarkField(personId, 'email', v)}
+                      onRevert={() => onClearField(personId, 'email')}
                       isEditMode={isEditMode}
+                      isDeleted={isDeleted}
                     />
                   </Table.Td>
                   <Table.Td>
@@ -215,9 +191,10 @@ export default function ContactPersonsPanel({
                           : (p.phone ?? '')
                       }
                       isDirty={dirty.phone !== undefined}
-                      onChange={(v) => markDirty(personId, 'phone', v)}
-                      onRevert={() => revertField(personId, 'phone')}
+                      onChange={(v) => onMarkField(personId, 'phone', v)}
+                      onRevert={() => onClearField(personId, 'phone')}
                       isEditMode={isEditMode}
+                      isDeleted={isDeleted}
                     />
                   </Table.Td>
                   <Table.Td>
@@ -228,20 +205,21 @@ export default function ContactPersonsPanel({
                           : (p.mobile ?? '')
                       }
                       isDirty={dirty.mobile !== undefined}
-                      onChange={(v) => markDirty(personId, 'mobile', v)}
-                      onRevert={() => revertField(personId, 'mobile')}
+                      onChange={(v) => onMarkField(personId, 'mobile', v)}
+                      onRevert={() => onClearField(personId, 'mobile')}
                       isEditMode={isEditMode}
+                      isDeleted={isDeleted}
                     />
                   </Table.Td>
                   <Table.Td ta="center">
-                    {isEditMode ? (
+                    {isEditMode && !isDeleted ? (
                       <Group gap={2} justify="center">
                         <ActionIcon
                           variant="subtle"
                           size="sm"
                           color={isPrimary ? 'yellow' : 'gray'}
                           onClick={() =>
-                            markDirty(
+                            onMarkField(
                               personId,
                               'is_primary_contact',
                               !isPrimary
@@ -257,11 +235,11 @@ export default function ContactPersonsPanel({
                             color="orange"
                             size="xs"
                             onClick={() =>
-                              revertField(personId, 'is_primary_contact')
+                              onClearField(personId, 'is_primary_contact')
                             }
                             aria-label="Revert"
                           >
-                            ×
+                            ↩
                           </ActionIcon>
                         )}
                       </Group>
@@ -274,79 +252,63 @@ export default function ContactPersonsPanel({
                       <Checkbox
                         checked={enablePortal}
                         onChange={
-                          isEditMode
+                          isEditMode && !isDeleted
                             ? (e) =>
-                                markDirty(
+                                onMarkField(
                                   personId,
                                   'enable_portal',
                                   e.currentTarget.checked
                                 )
                             : undefined
                         }
-                        readOnly={!isEditMode}
+                        readOnly={!isEditMode || isDeleted}
                         size="xs"
                       />
-                      {isEditMode && dirty.enable_portal !== undefined && (
-                        <ActionIcon
-                          variant="subtle"
-                          color="orange"
-                          size="xs"
-                          onClick={() => revertField(personId, 'enable_portal')}
-                          aria-label="Revert"
-                        >
-                          ×
-                        </ActionIcon>
-                      )}
+                      {isEditMode &&
+                        !isDeleted &&
+                        dirty.enable_portal !== undefined && (
+                          <ActionIcon
+                            variant="subtle"
+                            color="orange"
+                            size="xs"
+                            onClick={() =>
+                              onClearField(personId, 'enable_portal')
+                            }
+                            aria-label="Revert"
+                          >
+                            ↩
+                          </ActionIcon>
+                        )}
                     </Group>
                   </Table.Td>
                   {isEditMode && (
                     <Table.Td>
-                      {isConfirming ? (
-                        <Group gap={4} wrap="nowrap">
-                          <Text size="xs" c="red">
-                            Delete?
-                          </Text>
-                          <Button
-                            size="compact-xs"
-                            color="red"
-                            onClick={() => handleDelete(personId)}
-                          >
-                            Yes
-                          </Button>
-                          <Button
-                            size="compact-xs"
-                            variant="default"
-                            onClick={() => setConfirmingDelete(null)}
-                          >
-                            No
-                          </Button>
-                        </Group>
+                      {isDeleted ? (
+                        <Button
+                          size="compact-xs"
+                          variant="subtle"
+                          color="red"
+                          onClick={() => onUnmarkDelete(personId)}
+                        >
+                          Undo
+                        </Button>
                       ) : (
                         <Group gap={4} wrap="nowrap">
                           {isDirtyRow && (
-                            <>
-                              <Button
-                                size="compact-xs"
-                                color="orange"
-                                onClick={() => handleSave(p)}
-                              >
-                                Save
-                              </Button>
-                              <Button
-                                size="compact-xs"
-                                variant="subtle"
-                                color="orange"
-                                onClick={() => revertRow(personId)}
-                              >
-                                Revert
-                              </Button>
-                            </>
+                            <Button
+                              size="compact-xs"
+                              variant="subtle"
+                              color="orange"
+                              onClick={() => onRevertRow(personId)}
+                            >
+                              Revert
+                            </Button>
                           )}
                           <Button
                             size="compact-xs"
                             color="red"
                             variant="subtle"
-                            onClick={() => setConfirmingDelete(personId)}
+                            onClick={() => onMarkDelete(personId)}
                           >
                             Delete
                           </Button>
@@ -357,11 +319,52 @@ export default function ContactPersonsPanel({
                 </Table.Tr>
               )
             })}
+            {pendingAdds.map((draft) => (
+              <Table.Tr
+                key={draft._tempId}
+                style={{ backgroundColor: '#f0fdf4' }}
+              >
+                <Table.Td>
+                  <Group gap={4} wrap="nowrap">
+                    <Badge size="xs" color="green">
+                      New
+                    </Badge>
+                    <Text size="xs">{draft.first_name}</Text>
+                  </Group>
+                </Table.Td>
+                <Table.Td>
+                  <Text size="xs">{draft.last_name}</Text>
+                </Table.Td>
+                <Table.Td>
+                  <Text size="xs">{draft.email}</Text>
+                </Table.Td>
+                <Table.Td>
+                  <Text size="xs">{draft.phone}</Text>
+                </Table.Td>
+                <Table.Td>
+                  <Text size="xs">{draft.mobile}</Text>
+                </Table.Td>
+                <Table.Td />
+                <Table.Td />
+                {isEditMode && (
+                  <Table.Td>
+                    <Button
+                      size="compact-xs"
+                      variant="subtle"
+                      color="red"
+                      onClick={() => onCancelAdd(draft._tempId)}
+                    >
+                      ×
+                    </Button>
+                  </Table.Td>
+                )}
+              </Table.Tr>
+            ))}
             {isEditMode && showAdd && (
               <AddContactPersonRow
-                contactId={contactId}
                 contacts={contacts}
                 colSpan={colCount}
+                onSave={onAddPerson}
                 onCancel={() => setShowAdd(false)}
               />
             )}

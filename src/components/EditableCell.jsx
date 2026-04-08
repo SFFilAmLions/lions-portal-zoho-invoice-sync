@@ -159,7 +159,7 @@ export default function EditableCell({ getValue, row, column, table }) {
               onClick={handleRevert}
               aria-label="Revert"
             >
-              ×
+              ↩
             </ActionIcon>
           )}
         </Group>
@@ -226,7 +226,7 @@ export default function EditableCell({ getValue, row, column, table }) {
               aria-label="Revert"
               style={{ marginTop: 4 }}
             >
-              ×
+              ↩
             </ActionIcon>
           )}
         </Group>
@@ -333,7 +333,7 @@ export default function EditableCell({ getValue, row, column, table }) {
               aria-label="Revert"
               style={{ marginTop: 4 }}
             >
-              ×
+              ↩
             </ActionIcon>
           )}
         </Group>
@@ -384,7 +384,7 @@ export default function EditableCell({ getValue, row, column, table }) {
             aria-label="Revert"
             style={{ marginTop: 4 }}
           >
-            ×
+            ↩
           </ActionIcon>
         )}
       </Group>
