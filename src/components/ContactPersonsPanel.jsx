@@ -13,6 +13,7 @@ import {
   useUpdateContactPerson,
   useDeleteContactPerson,
 } from '../hooks/useContactPersons.js'
+import AddContactPersonRow from './AddContactPersonRow.jsx'
 
 function PersonCell({ value, isDirty, onChange }) {
   return (
@@ -30,7 +31,7 @@ function PersonCell({ value, isDirty, onChange }) {
   )
 }
 
-export default function ContactPersonsPanel({ contactId }) {
+export default function ContactPersonsPanel({ contactId, contacts }) {
   const { data: persons, isLoading } = useContactPersons(contactId)
   const { mutateAsync: savePerson } = useUpdateContactPerson(contactId)
   const { mutateAsync: removePerson } = useDeleteContactPerson(contactId)
@@ -39,6 +40,7 @@ export default function ContactPersonsPanel({ contactId }) {
   const [personDirtyMap, setPersonDirtyMap] = useState({})
   // confirmingDelete: personId awaiting confirmation, or null
   const [confirmingDelete, setConfirmingDelete] = useState(null)
+  const [showAdd, setShowAdd] = useState(false)
 
   const markDirty = useCallback((personId, field, value) => {
     setPersonDirtyMap((prev) => ({
@@ -86,10 +88,10 @@ export default function ContactPersonsPanel({ contactId }) {
         <Text size="xs" c="dimmed">
           Loading…
         </Text>
-      ) : !persons?.length ? (
+      ) : !persons?.length && !showAdd ? (
         <Text size="xs" c="dimmed">
           No contact persons.{' '}
-          <Button variant="subtle" size="compact-xs" disabled>
+          <Button variant="subtle" size="compact-xs" onClick={() => setShowAdd(true)}>
             + Add
           </Button>
         </Text>
@@ -251,7 +253,26 @@ export default function ContactPersonsPanel({ contactId }) {
                 </Table.Tr>
               )
             })}
+            {showAdd && (
+              <AddContactPersonRow
+                contactId={contactId}
+                contacts={contacts}
+                colSpan={8}
+                onCancel={() => setShowAdd(false)}
+              />
+            )}
           </Table.Tbody>
+          {!showAdd && (
+            <Table.Tfoot>
+              <Table.Tr>
+                <Table.Td colSpan={8}>
+                  <Button variant="subtle" size="compact-xs" onClick={() => setShowAdd(true)}>
+                    + Add
+                  </Button>
+                </Table.Td>
+              </Table.Tr>
+            </Table.Tfoot>
+          )}
         </Table>
       )}
     </div>
