@@ -1,5 +1,14 @@
 import { useState } from 'react'
-import { Anchor, Checkbox, Select, Stack, Text, TextInput } from '@mantine/core'
+import {
+  ActionIcon,
+  Anchor,
+  Checkbox,
+  Group,
+  Select,
+  Stack,
+  Text,
+  TextInput,
+} from '@mantine/core'
 import { DateInput } from '@mantine/dates'
 
 const ADD_NEW_SENTINEL = '__add_new__'
@@ -57,6 +66,13 @@ export default function EditableCell({ getValue, row, column, table }) {
     } else {
       meta.clearValidationError?.(contactId, columnId)
     }
+  }
+
+  function handleRevert() {
+    meta.clearDirty(contactId, columnId)
+    setValue(initialValue)
+    setAddingNew(false)
+    reportValidationError(null)
   }
 
   // --- Shared blur handler for text/email/phone/url ---
@@ -123,17 +139,30 @@ export default function EditableCell({ getValue, row, column, table }) {
 
     return (
       <Stack gap={2}>
-        <Checkbox
-          checked={boolValue}
-          onChange={handleCheckboxChange}
-          size="xs"
-          styles={{
-            input: {
-              cursor: 'pointer',
-              borderColor: isDirty ? '#f59e0b' : undefined,
-            },
-          }}
-        />
+        <Group gap={4} align="center">
+          <Checkbox
+            checked={boolValue}
+            onChange={handleCheckboxChange}
+            size="xs"
+            styles={{
+              input: {
+                cursor: 'pointer',
+                borderColor: isDirty ? '#f59e0b' : undefined,
+              },
+            }}
+          />
+          {isDirty && (
+            <ActionIcon
+              variant="subtle"
+              color="orange"
+              size="xs"
+              onClick={handleRevert}
+              aria-label="Revert"
+            >
+              ×
+            </ActionIcon>
+          )}
+        </Group>
         {isDirty && (
           <Text size="xs" c="dimmed" fs="italic">
             was:{' '}
@@ -171,21 +200,36 @@ export default function EditableCell({ getValue, row, column, table }) {
 
     return (
       <Stack gap={2}>
-        <DateInput
-          value={validDateValue}
-          onChange={handleDateChange}
-          size="xs"
-          error={validationError}
-          clearable
-          valueFormat="YYYY-MM-DD"
-          styles={{
-            input: {
-              borderColor: isDirty && !validationError ? '#f59e0b' : undefined,
-              backgroundColor:
-                isDirty && !validationError ? '#fefce8' : undefined,
-            },
-          }}
-        />
+        <Group gap={4} align="flex-start">
+          <DateInput
+            value={validDateValue}
+            onChange={handleDateChange}
+            size="xs"
+            error={validationError}
+            clearable
+            valueFormat="YYYY-MM-DD"
+            styles={{
+              input: {
+                borderColor:
+                  isDirty && !validationError ? '#f59e0b' : undefined,
+                backgroundColor:
+                  isDirty && !validationError ? '#fefce8' : undefined,
+              },
+            }}
+          />
+          {isDirty && (
+            <ActionIcon
+              variant="subtle"
+              color="orange"
+              size="xs"
+              onClick={handleRevert}
+              aria-label="Revert"
+              style={{ marginTop: 4 }}
+            >
+              ×
+            </ActionIcon>
+          )}
+        </Group>
         {isDirty && !validationError && (
           <Text size="xs" c="dimmed" fs="italic">
             was: {originalValue}
@@ -246,37 +290,53 @@ export default function EditableCell({ getValue, row, column, table }) {
 
     return (
       <Stack gap={2}>
-        {addingNew ? (
-          <TextInput
-            autoFocus
-            value={newEnumValue}
-            onChange={(e) => setNewEnumValue(e.target.value)}
-            onBlur={handleNewEnumBlur}
-            placeholder="Type new value…"
-            size="xs"
-            styles={{
-              input: {
-                borderColor: isDirty ? '#f59e0b' : undefined,
-                backgroundColor: isDirty ? '#fefce8' : undefined,
-              },
-            }}
-          />
-        ) : (
-          <Select
-            value={selectValue || null}
-            onChange={handleSelectChange}
-            data={selectData}
-            size="xs"
-            allowDeselect={false}
-            comboboxProps={{ withinPortal: true }}
-            styles={{
-              input: {
-                borderColor: isDirty ? '#f59e0b' : undefined,
-                backgroundColor: isDirty ? '#fefce8' : undefined,
-              },
-            }}
-          />
-        )}
+        <Group gap={4} align="flex-start">
+          {addingNew ? (
+            <TextInput
+              autoFocus
+              value={newEnumValue}
+              onChange={(e) => setNewEnumValue(e.target.value)}
+              onBlur={handleNewEnumBlur}
+              placeholder="Type new value…"
+              size="xs"
+              style={{ flex: 1 }}
+              styles={{
+                input: {
+                  borderColor: isDirty ? '#f59e0b' : undefined,
+                  backgroundColor: isDirty ? '#fefce8' : undefined,
+                },
+              }}
+            />
+          ) : (
+            <Select
+              value={selectValue || null}
+              onChange={handleSelectChange}
+              data={selectData}
+              size="xs"
+              allowDeselect={false}
+              comboboxProps={{ withinPortal: true }}
+              style={{ flex: 1 }}
+              styles={{
+                input: {
+                  borderColor: isDirty ? '#f59e0b' : undefined,
+                  backgroundColor: isDirty ? '#fefce8' : undefined,
+                },
+              }}
+            />
+          )}
+          {isDirty && (
+            <ActionIcon
+              variant="subtle"
+              color="orange"
+              size="xs"
+              onClick={handleRevert}
+              aria-label="Revert"
+              style={{ marginTop: 4 }}
+            >
+              ×
+            </ActionIcon>
+          )}
+        </Group>
         {isDirty && (
           <Text size="xs" c="dimmed" fs="italic">
             was: {originalValue}
@@ -298,21 +358,36 @@ export default function EditableCell({ getValue, row, column, table }) {
 
   return (
     <Stack gap={2}>
-      <TextInput
-        type={inputType}
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        onBlur={handleBlur}
-        error={validationError}
-        size="xs"
-        styles={{
-          input: {
-            borderColor: isDirty && !validationError ? '#f59e0b' : undefined,
-            backgroundColor:
-              isDirty && !validationError ? '#fefce8' : undefined,
-          },
-        }}
-      />
+      <Group gap={4} align="flex-start">
+        <TextInput
+          type={inputType}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onBlur={handleBlur}
+          error={validationError}
+          size="xs"
+          style={{ flex: 1 }}
+          styles={{
+            input: {
+              borderColor: isDirty && !validationError ? '#f59e0b' : undefined,
+              backgroundColor:
+                isDirty && !validationError ? '#fefce8' : undefined,
+            },
+          }}
+        />
+        {isDirty && (
+          <ActionIcon
+            variant="subtle"
+            color="orange"
+            size="xs"
+            onClick={handleRevert}
+            aria-label="Revert"
+            style={{ marginTop: 4 }}
+          >
+            ×
+          </ActionIcon>
+        )}
+      </Group>
       {isDirty && !validationError && (
         <Text size="xs" c="dimmed" fs="italic">
           was: {originalValue}

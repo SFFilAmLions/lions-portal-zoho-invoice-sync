@@ -15,22 +15,36 @@ import {
 } from '../hooks/useContactPersons.js'
 import AddContactPersonRow from './AddContactPersonRow.jsx'
 
-function PersonCell({ value, isDirty, onChange, isEditMode }) {
+function PersonCell({ value, isDirty, onChange, onRevert, isEditMode }) {
   if (!isEditMode) {
     return <Text size="xs">{value}</Text>
   }
   return (
-    <TextInput
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      size="xs"
-      styles={{
-        input: {
-          borderColor: isDirty ? '#f59e0b' : undefined,
-          backgroundColor: isDirty ? '#fefce8' : undefined,
-        },
-      }}
-    />
+    <Group gap={4} wrap="nowrap">
+      <TextInput
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        size="xs"
+        style={{ flex: 1 }}
+        styles={{
+          input: {
+            borderColor: isDirty ? '#f59e0b' : undefined,
+            backgroundColor: isDirty ? '#fefce8' : undefined,
+          },
+        }}
+      />
+      {isDirty && onRevert && (
+        <ActionIcon
+          variant="subtle"
+          color="orange"
+          size="xs"
+          onClick={onRevert}
+          aria-label="Revert"
+        >
+          ×
+        </ActionIcon>
+      )}
+    </Group>
   )
 }
 
@@ -56,7 +70,18 @@ export default function ContactPersonsPanel({
     }))
   }, [])
 
-  const clearPersonDirty = useCallback((personId) => {
+  const revertField = useCallback((personId, field) => {
+    setPersonDirtyMap((prev) => {
+      const fields = { ...(prev[personId] ?? {}) }
+      delete fields[field]
+      const next = { ...prev }
+      if (Object.keys(fields).length === 0) delete next[personId]
+      else next[personId] = fields
+      return next
+    })
+  }, [])
+
+  const revertRow = useCallback((personId) => {
     setPersonDirtyMap((prev) => {
       const next = { ...prev }
       delete next[personId]
@@ -78,7 +103,7 @@ export default function ContactPersonsPanel({
       enable_portal: dirty.enable_portal ?? person.enable_portal ?? false,
     }
     await savePerson({ personId, payload })
-    clearPersonDirty(personId)
+    revertRow(personId)
   }
 
   async function handleDelete(personId) {
@@ -152,6 +177,7 @@ export default function ContactPersonsPanel({
                       }
                       isDirty={dirty.first_name !== undefined}
                       onChange={(v) => markDirty(personId, 'first_name', v)}
+                      onRevert={() => revertField(personId, 'first_name')}
                       isEditMode={isEditMode}
                     />
                   </Table.Td>
@@ -164,6 +190,7 @@ export default function ContactPersonsPanel({
                       }
                       isDirty={dirty.last_name !== undefined}
                       onChange={(v) => markDirty(personId, 'last_name', v)}
+                      onRevert={() => revertField(personId, 'last_name')}
                       isEditMode={isEditMode}
                     />
                   </Table.Td>
@@ -176,6 +203,7 @@ export default function ContactPersonsPanel({
                       }
                       isDirty={dirty.email !== undefined}
                       onChange={(v) => markDirty(personId, 'email', v)}
+                      onRevert={() => revertField(personId, 'email')}
                       isEditMode={isEditMode}
                     />
                   </Table.Td>
@@ -188,6 +216,7 @@ export default function ContactPersonsPanel({
                       }
                       isDirty={dirty.phone !== undefined}
                       onChange={(v) => markDirty(personId, 'phone', v)}
+                      onRevert={() => revertField(personId, 'phone')}
                       isEditMode={isEditMode}
                     />
                   </Table.Td>
@@ -200,42 +229,75 @@ export default function ContactPersonsPanel({
                       }
                       isDirty={dirty.mobile !== undefined}
                       onChange={(v) => markDirty(personId, 'mobile', v)}
+                      onRevert={() => revertField(personId, 'mobile')}
                       isEditMode={isEditMode}
                     />
                   </Table.Td>
                   <Table.Td ta="center">
                     {isEditMode ? (
-                      <ActionIcon
-                        variant="subtle"
-                        size="sm"
-                        color={isPrimary ? 'yellow' : 'gray'}
-                        onClick={() =>
-                          markDirty(personId, 'is_primary_contact', !isPrimary)
-                        }
-                        aria-label="Toggle primary contact"
-                      >
-                        {isPrimary ? '★' : '☆'}
-                      </ActionIcon>
+                      <Group gap={2} justify="center">
+                        <ActionIcon
+                          variant="subtle"
+                          size="sm"
+                          color={isPrimary ? 'yellow' : 'gray'}
+                          onClick={() =>
+                            markDirty(
+                              personId,
+                              'is_primary_contact',
+                              !isPrimary
+                            )
+                          }
+                          aria-label="Toggle primary contact"
+                        >
+                          {isPrimary ? '★' : '☆'}
+                        </ActionIcon>
+                        {dirty.is_primary_contact !== undefined && (
+                          <ActionIcon
+                            variant="subtle"
+                            color="orange"
+                            size="xs"
+                            onClick={() =>
+                              revertField(personId, 'is_primary_contact')
+                            }
+                            aria-label="Revert"
+                          >
+                            ×
+                          </ActionIcon>
+                        )}
+                      </Group>
                     ) : (
                       <Text size="xs">{isPrimary ? '★' : ''}</Text>
                     )}
                   </Table.Td>
                   <Table.Td ta="center">
-                    <Checkbox
-                      checked={enablePortal}
-                      onChange={
-                        isEditMode
-                          ? (e) =>
-                              markDirty(
-                                personId,
-                                'enable_portal',
-                                e.currentTarget.checked
-                              )
-                          : undefined
-                      }
-                      readOnly={!isEditMode}
-                      size="xs"
-                    />
+                    <Group gap={2} justify="center">
+                      <Checkbox
+                        checked={enablePortal}
+                        onChange={
+                          isEditMode
+                            ? (e) =>
+                                markDirty(
+                                  personId,
+                                  'enable_portal',
+                                  e.currentTarget.checked
+                                )
+                            : undefined
+                        }
+                        readOnly={!isEditMode}
+                        size="xs"
+                      />
+                      {isEditMode && dirty.enable_portal !== undefined && (
+                        <ActionIcon
+                          variant="subtle"
+                          color="orange"
+                          size="xs"
+                          onClick={() => revertField(personId, 'enable_portal')}
+                          aria-label="Revert"
+                        >
+                          ×
+                        </ActionIcon>
+                      )}
+                    </Group>
                   </Table.Td>
                   {isEditMode && (
                     <Table.Td>
@@ -262,13 +324,23 @@ export default function ContactPersonsPanel({
                       ) : (
                         <Group gap={4} wrap="nowrap">
                           {isDirtyRow && (
-                            <Button
-                              size="compact-xs"
-                              color="orange"
-                              onClick={() => handleSave(p)}
-                            >
-                              Save
-                            </Button>
+                            <>
+                              <Button
+                                size="compact-xs"
+                                color="orange"
+                                onClick={() => handleSave(p)}
+                              >
+                                Save
+                              </Button>
+                              <Button
+                                size="compact-xs"
+                                variant="subtle"
+                                color="orange"
+                                onClick={() => revertRow(personId)}
+                              >
+                                Revert
+                              </Button>
+                            </>
                           )}
                           <Button
                             size="compact-xs"
