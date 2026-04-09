@@ -119,6 +119,16 @@ export function getContactFieldValue(contact, fieldId) {
 }
 
 /**
+ * Normalize a string for comparison: trim leading/trailing whitespace and
+ * collapse internal runs of whitespace to a single space.
+ */
+function normalizeWs(s) {
+  return String(s ?? '')
+    .trim()
+    .replace(/\s+/g, ' ')
+}
+
+/**
  * Apply a column mapping to parsed CSV rows, producing dirty-map entries.
  *
  * @param {Object[]} csvRows - rows from PapaParse (header: true)
@@ -141,12 +151,11 @@ export function applyMapping(
   let unmatchedCount = 0
 
   for (const row of csvRows) {
-    const matchValue = String(row[matchCsvHeader] ?? '').trim()
+    const matchValue = normalizeWs(row[matchCsvHeader])
     if (!matchValue) continue
 
     const contact = contacts.find(
-      (c) =>
-        String(getContactFieldValue(c, matchZohoField)).trim() === matchValue
+      (c) => normalizeWs(getContactFieldValue(c, matchZohoField)) === matchValue
     )
 
     if (!contact) {
@@ -160,10 +169,8 @@ export function applyMapping(
 
     for (const [csvHeader, zohoField] of Object.entries(mapping)) {
       if (zohoField === '__ignore__') continue
-      const csvValue = String(row[csvHeader] ?? '').trim()
-      const currentValue = String(
-        getContactFieldValue(contact, zohoField)
-      ).trim()
+      const csvValue = normalizeWs(row[csvHeader])
+      const currentValue = normalizeWs(getContactFieldValue(contact, zohoField))
       if (csvValue !== currentValue) {
         fields[zohoField] = csvValue
       }
