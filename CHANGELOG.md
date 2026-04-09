@@ -1,3 +1,20 @@
+# [1.9.0](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/compare/v1.8.0...v1.9.0) (2026-04-09)
+
+### Bug Fixes
+
+- contact persons panel respects edit mode; expander shows count ([#36](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/36)) ([a20d5a3](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/commit/a20d5a327f4766f8d41b05781d55afbce7a82ef4))
+- remove max-width cap so table fills available screen width ([#40](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/40)) ([eb1bfd1](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/commit/eb1bfd1c972b3f2acb49b5ab99c1fc973e4cd415)), closes [#39](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/39)
+- trim org objects to id+name before storing in session cookie ([#42](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/42)) ([2c1ff1f](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/commit/2c1ff1f6ee333cca9fb452d8ce8a7d378aff5a23)), closes [#41](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/41)
+
+### Features
+
+- add contact person via customer selection ([#33](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/33)) ([7bc6f16](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/commit/7bc6f169129e37c127acc5064d5c6debf6c0eff3)), closes [#25](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/25)
+- add CSV import mode with column mapping and match key ([#52](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/52)) ([822f082](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/commit/822f0822ce0e208c0c5a6de6669b73ae9706cbdb)), closes [#47](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/47)
+- add per-field and per-row revert buttons in edit mode ([#48](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/48)) ([7547629](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/commit/7547629ef98569bd35251a84401d134dcce3e0e4)), closes [#44](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/44)
+- persist auth token in cookie to survive page reloads ([#38](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/38)) ([1c7f91f](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/commit/1c7f91faa04dae0f27ffa7bea3fd545c28923619)), closes [#37](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/37)
+- show contact person count on expander before row is opened ([#49](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/49)) ([fb7d5e1](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/commit/fb7d5e1ded9359a90e152f3a8e9d91f9efd2a67e)), closes [#46](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/46)
+- stage contact person edits, adds, and deletes until Commit ([#50](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/50)) ([4b816aa](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/commit/4b816aa7c688d06a5ebe48c97fb320839c8c1efd)), closes [#45](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/45)
+
 # [1.8.0](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/compare/v1.7.1...v1.8.0) (2026-04-03)
 
 ### Features
