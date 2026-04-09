@@ -5,6 +5,7 @@ import {
   flexRender,
 } from '@tanstack/react-table'
 import {
+  ActionIcon,
   Alert,
   Badge,
   Button,
@@ -139,12 +140,32 @@ function buildPayload(original, dirtyFields) {
 }
 
 /** Small header component that renders the column name + type override badge */
-function ColumnHeader({ label, columnId, type, onTypeChange }) {
+function ColumnHeader({
+  label,
+  columnId,
+  type,
+  onTypeChange,
+  isEditMode,
+  isColumnDirty,
+  onRevertColumn,
+}) {
   return (
     <Group gap={4} align="center" wrap="nowrap">
       <Text size="sm" fw={600} style={{ whiteSpace: 'nowrap' }}>
         {label}
       </Text>
+      {isEditMode && isColumnDirty && (
+        <ActionIcon
+          size="xs"
+          variant="subtle"
+          color="orange"
+          onClick={onRevertColumn}
+          title="Revert all changes in this column"
+          aria-label="Revert column"
+        >
+          ↩
+        </ActionIcon>
+      )}
       <Select
         size="xs"
         w={70}
@@ -256,6 +277,50 @@ export default function CustomerTable() {
       return next
     })
   }, [])
+
+  const clearRowDirty = useCallback((contactId) => {
+    setDirtyMap((prev) => {
+      const next = { ...prev }
+      delete next[contactId]
+      return next
+    })
+    setValidationErrors((prev) => {
+      const next = { ...prev }
+      delete next[contactId]
+      return next
+    })
+  }, [])
+
+  const clearColumnDirty = useCallback((columnId) => {
+    setDirtyMap((prev) => {
+      const next = {}
+      for (const [cId, fields] of Object.entries(prev)) {
+        const remaining = { ...fields }
+        delete remaining[columnId]
+        if (Object.keys(remaining).length > 0) next[cId] = remaining
+      }
+      return next
+    })
+    setValidationErrors((prev) => {
+      const next = {}
+      for (const [cId, fields] of Object.entries(prev)) {
+        const remaining = { ...fields }
+        delete remaining[columnId]
+        if (Object.keys(remaining).length > 0) next[cId] = remaining
+      }
+      return next
+    })
+  }, [])
+
+  const isRowDirty = useCallback(
+    (contactId) => Object.keys(dirtyMap[contactId] ?? {}).length > 0,
+    [dirtyMap]
+  )
+
+  const isColumnDirty = useCallback(
+    (columnId) => Object.values(dirtyMap).some((fields) => columnId in fields),
+    [dirtyMap]
+  )
 
   const isDirty = useCallback(
     (contactId, columnId) => dirtyMap[contactId]?.[columnId] !== undefined,
@@ -422,30 +487,48 @@ export default function CustomerTable() {
         id: 'expander',
         header: '',
         meta: { noTypeSelector: true },
-        cell: ({ row }) => {
+        cell: ({ row, table }) => {
+          const meta = table.options.meta ?? {}
+          const isEditModeCell = meta.isEditMode ?? false
+          const contactId = row.original.contact_id
+          const rowDirty = meta.isRowDirty?.(contactId) ?? false
           const cached = queryClient.getQueryData(['contactPersons', row.id])
           // cached takes precedence (accurate after first expand); fall back to
           // the count Zoho returns inline with the contacts list response
           const count = cached?.length ?? row.original.contact_persons?.length
           return (
-            <button
-              onClick={() => toggleExpanded(row.id)}
-              style={{
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: '0.7rem',
-                padding: '0 4px',
-                color: '#666',
-                whiteSpace: 'nowrap',
-              }}
-              aria-label={expandedRows.has(row.id) ? 'Collapse' : 'Expand'}
-            >
-              {expandedRows.has(row.id) ? '▼' : '▶'}
-              {count !== undefined && (
-                <span style={{ marginLeft: 3 }}>{count}</span>
+            <Group gap={2} wrap="nowrap" align="center">
+              {isEditModeCell && rowDirty && (
+                <ActionIcon
+                  size="xs"
+                  variant="subtle"
+                  color="orange"
+                  onClick={() => meta.clearRowDirty?.(contactId)}
+                  title="Revert all changes in this row"
+                  aria-label="Revert row"
+                >
+                  ↩
+                </ActionIcon>
               )}
-            </button>
+              <button
+                onClick={() => toggleExpanded(row.id)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '0.7rem',
+                  padding: '0 4px',
+                  color: '#666',
+                  whiteSpace: 'nowrap',
+                }}
+                aria-label={expandedRows.has(row.id) ? 'Collapse' : 'Expand'}
+              >
+                {expandedRows.has(row.id) ? '▼' : '▶'}
+                {count !== undefined && (
+                  <span style={{ marginLeft: 3 }}>{count}</span>
+                )}
+              </button>
+            </Group>
           )
         },
       },
@@ -514,7 +597,9 @@ export default function CustomerTable() {
       isEditMode,
       markDirty,
       clearDirty,
+      clearRowDirty,
       isDirty,
+      isRowDirty,
       getDirtyValue,
       getColType,
       getEnumValues,
@@ -821,6 +906,9 @@ export default function CustomerTable() {
                           columnId={colId}
                           type={effectiveType}
                           onTypeChange={handleTypeChange}
+                          isEditMode={isEditMode}
+                          isColumnDirty={isColumnDirty(colId)}
+                          onRevertColumn={() => clearColumnDirty(colId)}
                         />
                       )}
                     </Table.Th>
