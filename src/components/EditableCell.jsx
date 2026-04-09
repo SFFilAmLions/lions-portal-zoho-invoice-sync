@@ -110,12 +110,23 @@ export default function EditableCell({ getValue, row, column, table }) {
           </Anchor>
         )
       }
-      return <Text size="sm">{displayValue}</Text>
+      return (
+        <Text size="sm" c="dimmed">
+          —
+        </Text>
+      )
     }
     if (type === 'boolean') {
       return (
         <Text size="sm">
           {displayValue === true || displayValue === 'true' ? 'Yes' : 'No'}
+        </Text>
+      )
+    }
+    if (!displayValue && displayValue !== 0) {
+      return (
+        <Text size="sm" c="dimmed">
+          —
         </Text>
       )
     }

@@ -28,13 +28,15 @@ import CommitModal from './CommitModal.jsx'
 import ContactPersonsPanel from './ContactPersonsPanel.jsx'
 import CsvImportModal from './CsvImportModal.jsx'
 
-// Human-readable labels for billing sub-fields populated via CSV import
-// (these don't have a column definition in the table)
+// Human-readable labels for fields that may appear in dirtyMap but don't have
+// a matching column header (billing sub-fields from CSV import, etc.)
 const EXTRA_FIELD_LABELS = {
   billing_city: 'Billing City',
   billing_state: 'Billing State',
   billing_zip: 'Billing Zip',
   billing_country: 'Billing Country',
+  company_name: 'Company',
+  customer_sub_type: 'Type',
 }
 
 const PAGE_SIZE_OPTIONS = ['10', '25', '50', '100']
@@ -95,11 +97,22 @@ function getStoredPageSize() {
  * Zoho does not support partial updates, so we must send the full object.
  */
 function buildPayload(original, dirtyFields) {
+  const subType =
+    dirtyFields.customer_sub_type ?? original.customer_sub_type ?? 'individual'
   const first = dirtyFields.first_name ?? original.first_name ?? ''
   const last = dirtyFields.last_name ?? original.last_name ?? ''
+  const companyName =
+    dirtyFields.company_name ??
+    original.company_name ??
+    (original.customer_sub_type === 'business' ? original.contact_name : '')
 
   const payload = {
-    contact_name: `${first} ${last}`.trim(),
+    contact_name:
+      subType === 'business'
+        ? companyName || `${first} ${last}`.trim()
+        : `${first} ${last}`.trim(),
+    customer_sub_type: subType,
+    company_name: companyName,
     first_name: first,
     last_name: last,
     email: original.email ?? '',
@@ -111,7 +124,12 @@ function buildPayload(original, dirtyFields) {
   }
 
   for (const [field, value] of Object.entries(dirtyFields)) {
-    if (field === 'first_name' || field === 'last_name') {
+    if (
+      field === 'first_name' ||
+      field === 'last_name' ||
+      field === 'company_name' ||
+      field === 'customer_sub_type'
+    ) {
       // already handled above
     } else if (field === 'address') {
       payload.billing_address.address = value
@@ -136,6 +154,44 @@ function buildPayload(original, dirtyFields) {
   }
 
   return payload
+}
+
+/** Serialize the current page of contacts to a CSV string and trigger download. */
+function exportContactsToCsv(contacts, customFieldColumns, orgName) {
+  const stdHeaders = ['first_name', 'last_name', 'email', 'phone', 'address']
+  const cfHeaders = customFieldColumns.map((c) => c.id)
+  const allHeaders = [...stdHeaders, ...cfHeaders]
+
+  function escape(v) {
+    const s = v == null ? '' : String(v)
+    return `"${s.replace(/"/g, '""')}"`
+  }
+
+  const rows = contacts.map((c) => [
+    escape(c.first_name),
+    escape(c.last_name),
+    escape(c.email),
+    escape(c.phone),
+    escape(c.billing_address?.address),
+    ...cfHeaders.map((id) =>
+      escape(c.custom_fields?.find((f) => f.api_name === id)?.value)
+    ),
+  ])
+
+  const csv = [allHeaders.map(escape), ...rows]
+    .map((r) => r.join(','))
+    .join('\r\n')
+
+  const date = new Date().toISOString().split('T')[0]
+  const safeName = orgName.replace(/[^a-z0-9]/gi, '_')
+  const filename = `customers-${safeName}-${date}.csv`
+
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
 }
 
 /** Small header component that renders the column name + type override badge */
@@ -450,6 +506,13 @@ export default function CustomerTable() {
         },
       },
       {
+        accessorFn: (row) => row.customer_sub_type ?? 'individual',
+        id: 'customer_sub_type',
+        header: 'Type',
+        cell: EditableCell,
+        meta: { defaultType: 'enum', noTypeSelector: true },
+      },
+      {
         accessorKey: 'first_name',
         header: 'First Name',
         cell: EditableCell,
@@ -460,6 +523,15 @@ export default function CustomerTable() {
         header: 'Last Name',
         cell: EditableCell,
         meta: { defaultType: 'text' },
+      },
+      {
+        accessorFn: (row) =>
+          row.company_name ??
+          (row.customer_sub_type === 'business' ? row.contact_name : ''),
+        id: 'company_name',
+        header: 'Company',
+        cell: EditableCell,
+        meta: { defaultType: 'text', noTypeSelector: true },
       },
       {
         accessorKey: 'email',
@@ -748,6 +820,17 @@ export default function CustomerTable() {
                 onClick={openCsvModal}
               >
                 Import from CSV
+              </Button>
+              <Button
+                size="sm"
+                variant="light"
+                color="gray"
+                onClick={() =>
+                  exportContactsToCsv(contacts, customFieldColumns, orgName)
+                }
+                disabled={contacts.length === 0}
+              >
+                Export CSV
               </Button>
             </>
           )}

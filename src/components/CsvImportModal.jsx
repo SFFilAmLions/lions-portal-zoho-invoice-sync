@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import Papa from 'papaparse'
 import {
   Alert,
@@ -38,6 +38,7 @@ export default function CsvImportModal({
   onApply,
 }) {
   const fileInputRef = useRef(null)
+  const [isDragOver, setIsDragOver] = useState(false)
 
   // Step: 'upload' | 'mapping'
   const [step, setStep] = useState('upload')
@@ -88,9 +89,7 @@ export default function CsvImportModal({
     })),
   ]
 
-  function handleFileChange(e) {
-    const file = e.target.files?.[0]
-    if (!file) return
+  const parseFile = useCallback((file) => {
     setParseError(null)
     Papa.parse(file, {
       header: true,
@@ -119,8 +118,38 @@ export default function CsvImportModal({
         setParseError(err.message)
       },
     })
+  }, [])
+
+  function handleFileChange(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    parseFile(file)
     // Reset file input so the same file can be re-selected
     e.target.value = ''
+  }
+
+  function handleDragOver(e) {
+    e.preventDefault()
+    setIsDragOver(true)
+  }
+
+  function handleDragLeave(e) {
+    // Only clear if leaving the drop zone entirely (not entering a child element)
+    if (!e.currentTarget.contains(e.relatedTarget)) {
+      setIsDragOver(false)
+    }
+  }
+
+  function handleDrop(e) {
+    e.preventDefault()
+    setIsDragOver(false)
+    const file = e.dataTransfer.files?.[0]
+    if (!file) return
+    if (!file.name.endsWith('.csv') && file.type !== 'text/csv') {
+      setParseError('Please drop a CSV file.')
+      return
+    }
+    parseFile(file)
   }
 
   function handleMappingChange(csvHeader, zohoField) {
@@ -182,10 +211,6 @@ export default function CsvImportModal({
     >
       {step === 'upload' && (
         <Stack gap="md">
-          <Text size="sm" c="dimmed">
-            Upload a CSV file. Headers will be analyzed and mapped to Zoho
-            contact fields automatically where possible.
-          </Text>
           {parseError && (
             <Alert color="red" title="Parse error">
               {parseError}
@@ -198,9 +223,31 @@ export default function CsvImportModal({
             style={{ display: 'none' }}
             onChange={handleFileChange}
           />
-          <Button onClick={() => fileInputRef.current?.click()}>
-            Choose CSV file…
-          </Button>
+          <div
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            onClick={() => fileInputRef.current?.click()}
+            style={{
+              border: `2px dashed ${isDragOver ? '#228be6' : '#ced4da'}`,
+              borderRadius: 8,
+              padding: '40px 24px',
+              textAlign: 'center',
+              cursor: 'pointer',
+              background: isDragOver ? '#e7f5ff' : undefined,
+              transition: 'border-color 0.15s, background 0.15s',
+            }}
+          >
+            <Text size="sm" fw={500} mb={4}>
+              {isDragOver
+                ? 'Drop CSV file here'
+                : 'Drop a CSV file here, or click to browse'}
+            </Text>
+            <Text size="xs" c="dimmed">
+              Headers will be mapped to Zoho contact fields automatically where
+              possible.
+            </Text>
+          </div>
           <Group justify="flex-end">
             <Button variant="default" onClick={onClose}>
               Cancel
