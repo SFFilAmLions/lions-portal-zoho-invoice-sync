@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   Alert,
   Button,
   Group,
   Loader,
   Modal,
+  Progress,
   ScrollArea,
   Stack,
   Table,
@@ -40,16 +41,22 @@ export default function CommitModal({
   const [rowStatus, setRowStatus] = useState({})
   // { [contactId]: string }
   const [rowErrors, setRowErrors] = useState({})
+  // Ordered log of completed contacts: [{ contactName, status, errorMsg? }]
+  const [logEntries, setLogEntries] = useState([])
 
-  function handleProgress(contactId, status, error) {
-    setRowStatus((prev) => ({ ...prev, [contactId]: status }))
-    if (status === 'error' && error) {
-      setRowErrors((prev) => ({
-        ...prev,
-        [contactId]: error.message ?? String(error),
-      }))
-    }
-  }
+  // Total unique contacts to save (for progress bar)
+  const totalContacts = useMemo(
+    () => new Set(pendingChanges.map((c) => c.contactId)).size,
+    [pendingChanges]
+  )
+
+  const completed = Object.values(rowStatus).filter(
+    (s) => s === 'success' || s === 'error'
+  ).length
+  const progressValue =
+    totalContacts > 0 ? Math.round((completed / totalContacts) * 100) : 0
+  const hasErrors = Object.keys(rowErrors).length > 0
+  const showProgress = saving || completed > 0
 
   // Collect errors locally during the call (state updates are async so we can't
   // reliably read rowErrors right after onConfirm resolves).
@@ -57,13 +64,34 @@ export default function CommitModal({
     setSaving(true)
     setRowStatus({})
     setRowErrors({})
+    setLogEntries([])
     const localErrors = {}
+
     function trackedProgress(contactId, status, error) {
-      handleProgress(contactId, status, error)
+      setRowStatus((prev) => ({ ...prev, [contactId]: status }))
       if (status === 'error' && error) {
-        localErrors[contactId] = error.message ?? String(error)
+        const msg = error.message ?? String(error)
+        setRowErrors((prev) => ({ ...prev, [contactId]: msg }))
+        localErrors[contactId] = msg
+      }
+      if (status === 'success' || status === 'error') {
+        const name =
+          pendingChanges.find((c) => c.contactId === contactId)?.contactName ??
+          contactId
+        setLogEntries((prev) => [
+          ...prev,
+          {
+            contactName: name,
+            status,
+            errorMsg:
+              status === 'error'
+                ? (error?.message ?? String(error))
+                : undefined,
+          },
+        ])
       }
     }
+
     try {
       await onConfirm(trackedProgress)
       if (Object.keys(localErrors).length === 0) {
@@ -78,10 +106,9 @@ export default function CommitModal({
     if (saving) return
     setRowStatus({})
     setRowErrors({})
+    setLogEntries([])
     onClose()
   }
-
-  const hasErrors = Object.keys(rowErrors).length > 0
 
   return (
     <Modal
@@ -92,10 +119,71 @@ export default function CommitModal({
       scrollAreaComponent={ScrollArea.Autosize}
     >
       <Stack gap="md">
-        <Text size="sm" c="dimmed">
-          Review the pending changes below. Click &ldquo;Confirm &amp;
-          Save&rdquo; to write them to Zoho.
-        </Text>
+        {!showProgress && (
+          <Text size="sm" c="dimmed">
+            Review the pending changes below. Click &ldquo;Confirm &amp;
+            Save&rdquo; to write them to Zoho.
+          </Text>
+        )}
+
+        {showProgress && (
+          <Stack gap={6}>
+            <Group justify="space-between">
+              <Text size="sm" fw={500}>
+                {saving
+                  ? 'Saving…'
+                  : hasErrors
+                    ? 'Completed with errors'
+                    : 'All changes saved'}
+              </Text>
+              <Text size="sm" c="dimmed">
+                {completed} / {totalContacts}
+              </Text>
+            </Group>
+            <Progress
+              value={progressValue}
+              color={saving ? 'orange' : hasErrors ? 'red' : 'green'}
+              animated={saving}
+              size="sm"
+            />
+          </Stack>
+        )}
+
+        {logEntries.length > 0 && (
+          <Stack gap={2}>
+            {logEntries.map((entry, i) => (
+              <Group key={i} gap={6} align="center">
+                <span
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: entry.status === 'success' ? '#2f9e44' : '#e03131',
+                    flexShrink: 0,
+                  }}
+                >
+                  {entry.status === 'success' ? '✓' : '✕'}
+                </span>
+                <Text size="sm">
+                  {entry.contactName}
+                  {entry.errorMsg && (
+                    <Text span c="red" size="sm">
+                      {' '}
+                      — {entry.errorMsg}
+                    </Text>
+                  )}
+                </Text>
+              </Group>
+            ))}
+            {saving && (
+              <Group gap={6} align="center">
+                <Loader size={12} />
+                <Text size="sm" c="dimmed">
+                  Saving…
+                </Text>
+              </Group>
+            )}
+          </Stack>
+        )}
 
         <Table withTableBorder withColumnBorders fz="sm">
           <Table.Thead>
