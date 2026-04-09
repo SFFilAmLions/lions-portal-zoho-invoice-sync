@@ -3,11 +3,13 @@ import {
   Alert,
   Button,
   Group,
+  Loader,
   Modal,
   ScrollArea,
   Stack,
   Table,
   Text,
+  Tooltip,
 } from '@mantine/core'
 
 /**
@@ -23,8 +25,7 @@ import {
  *     original: string,
  *     newValue: string,
  *   }>}
- *   onConfirm    {() => Promise<Map<string, Error|null>>}
- *                resolves with a Map of contactId → Error (null means success)
+ *   onConfirm    {(onProgress: (contactId, status, error?) => void) => Promise<void>}
  *   personOpSummary {edits: number, adds: number, deletes: number}
  */
 export default function CommitModal({
@@ -35,19 +36,37 @@ export default function CommitModal({
   personOpSummary,
 }) {
   const [saving, setSaving] = useState(false)
-  const [errors, setErrors] = useState({}) // { [contactId]: string }
+  // { [contactId]: 'saving' | 'success' | 'error' }
+  const [rowStatus, setRowStatus] = useState({})
+  // { [contactId]: string }
+  const [rowErrors, setRowErrors] = useState({})
 
-  async function handleConfirm() {
+  function handleProgress(contactId, status, error) {
+    setRowStatus((prev) => ({ ...prev, [contactId]: status }))
+    if (status === 'error' && error) {
+      setRowErrors((prev) => ({
+        ...prev,
+        [contactId]: error.message ?? String(error),
+      }))
+    }
+  }
+
+  // Collect errors locally during the call (state updates are async so we can't
+  // reliably read rowErrors right after onConfirm resolves).
+  async function handleConfirmTracked() {
     setSaving(true)
-    setErrors({})
-    try {
-      const resultMap = await onConfirm()
-      const newErrors = {}
-      for (const [contactId, err] of resultMap) {
-        if (err) newErrors[contactId] = err.message ?? String(err)
+    setRowStatus({})
+    setRowErrors({})
+    const localErrors = {}
+    function trackedProgress(contactId, status, error) {
+      handleProgress(contactId, status, error)
+      if (status === 'error' && error) {
+        localErrors[contactId] = error.message ?? String(error)
       }
-      setErrors(newErrors)
-      if (Object.keys(newErrors).length === 0) {
+    }
+    try {
+      await onConfirm(trackedProgress)
+      if (Object.keys(localErrors).length === 0) {
         onClose()
       }
     } finally {
@@ -57,12 +76,12 @@ export default function CommitModal({
 
   function handleClose() {
     if (saving) return
-    setErrors({})
+    setRowStatus({})
+    setRowErrors({})
     onClose()
   }
 
-  // Collect unique contact IDs that have errors
-  const contactIdsWithErrors = new Set(Object.keys(errors))
+  const hasErrors = Object.keys(rowErrors).length > 0
 
   return (
     <Modal
@@ -81,6 +100,7 @@ export default function CommitModal({
         <Table withTableBorder withColumnBorders fz="sm">
           <Table.Thead>
             <Table.Tr>
+              <Table.Th w={32}></Table.Th>
               <Table.Th>Contact</Table.Th>
               <Table.Th>Field</Table.Th>
               <Table.Th>Original</Table.Th>
@@ -88,21 +108,30 @@ export default function CommitModal({
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
-            {pendingChanges.map((change, i) => (
-              <Table.Tr
-                key={i}
-                style={
-                  contactIdsWithErrors.has(change.contactId)
-                    ? { backgroundColor: '#fff1f2' }
-                    : undefined
-                }
-              >
-                <Table.Td>{change.contactName}</Table.Td>
-                <Table.Td>{change.field}</Table.Td>
-                <Table.Td c="dimmed">{change.original}</Table.Td>
-                <Table.Td fw={500}>{change.newValue}</Table.Td>
-              </Table.Tr>
-            ))}
+            {pendingChanges.map((change, i) => {
+              const status = rowStatus[change.contactId]
+              const errMsg = rowErrors[change.contactId]
+              return (
+                <Table.Tr
+                  key={i}
+                  style={
+                    status === 'error'
+                      ? { backgroundColor: '#fff1f2' }
+                      : status === 'success'
+                        ? { backgroundColor: '#f0fdf4' }
+                        : undefined
+                  }
+                >
+                  <Table.Td ta="center" py={2}>
+                    <StatusIcon status={status} errorMsg={errMsg} />
+                  </Table.Td>
+                  <Table.Td>{change.contactName}</Table.Td>
+                  <Table.Td>{change.field}</Table.Td>
+                  <Table.Td c="dimmed">{change.original}</Table.Td>
+                  <Table.Td fw={500}>{change.newValue}</Table.Td>
+                </Table.Tr>
+              )
+            })}
           </Table.Tbody>
         </Table>
 
@@ -115,47 +144,80 @@ export default function CommitModal({
             </Text>
             {personOpSummary.edits > 0 && (
               <Text size="sm" c="dimmed">
-                • {personOpSummary.edits} field edit
+                &bull; {personOpSummary.edits} field edit
                 {personOpSummary.edits !== 1 ? 's' : ''}
               </Text>
             )}
             {personOpSummary.adds > 0 && (
               <Text size="sm" c="dimmed">
-                • {personOpSummary.adds} addition
+                &bull; {personOpSummary.adds} addition
                 {personOpSummary.adds !== 1 ? 's' : ''}
               </Text>
             )}
             {personOpSummary.deletes > 0 && (
               <Text size="sm" c="dimmed">
-                • {personOpSummary.deletes} deletion
+                &bull; {personOpSummary.deletes} deletion
                 {personOpSummary.deletes !== 1 ? 's' : ''}
               </Text>
             )}
           </Stack>
         )}
 
-        {Object.entries(errors).map(([contactId, msg]) => {
-          const contact = pendingChanges.find((c) => c.contactId === contactId)
-          return (
-            <Alert
-              key={contactId}
-              color="red"
-              title={`Failed: ${contact?.contactName ?? contactId}`}
-            >
-              {msg}
-            </Alert>
-          )
-        })}
+        {hasErrors && (
+          <Alert color="red" title="Some changes failed to save">
+            Failed rows are highlighted above. Fix the issue or retry — only
+            failed edits remain in the queue.
+          </Alert>
+        )}
 
         <Group justify="flex-end" gap="sm">
           <Button variant="default" onClick={handleClose} disabled={saving}>
-            Cancel
+            {hasErrors ? 'Close' : 'Cancel'}
           </Button>
-          <Button color="orange" onClick={handleConfirm} loading={saving}>
-            Confirm &amp; Save
+          <Button
+            color="orange"
+            onClick={handleConfirmTracked}
+            loading={saving}
+          >
+            {hasErrors ? 'Retry failed' : 'Confirm \u0026 Save'}
           </Button>
         </Group>
       </Stack>
     </Modal>
   )
+}
+
+function StatusIcon({ status, errorMsg }) {
+  if (!status) return null
+  if (status === 'saving') {
+    return <Loader size={14} />
+  }
+  if (status === 'success') {
+    return (
+      <span
+        style={{ color: '#2f9e44', fontWeight: 700, fontSize: 14 }}
+        aria-label="Saved"
+      >
+        ✓
+      </span>
+    )
+  }
+  if (status === 'error') {
+    return (
+      <Tooltip label={errorMsg ?? 'Error'} withArrow>
+        <span
+          style={{
+            color: '#e03131',
+            fontWeight: 700,
+            fontSize: 14,
+            cursor: 'help',
+          }}
+          aria-label="Failed"
+        >
+          ✕
+        </span>
+      </Tooltip>
+    )
+  }
+  return null
 }

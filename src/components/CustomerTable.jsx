@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import {
   useReactTable,
   getCoreRowModel,
@@ -78,6 +78,40 @@ function writeColTypesCookie(overrides) {
   // 1-year expiry
   const expires = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toUTCString()
   document.cookie = `${COOKIE_NAME}=${value}; expires=${expires}; path=/; SameSite=Lax`
+}
+
+// ---
+
+// --- Edit state persistence ---
+
+function editStateKey(orgId) {
+  return `lions-edit-state-${orgId}`
+}
+
+function loadEditState(orgId) {
+  try {
+    const raw = localStorage.getItem(editStateKey(orgId))
+    if (!raw) return null
+    return JSON.parse(raw)
+  } catch {
+    return null
+  }
+}
+
+function saveEditState(orgId, state) {
+  try {
+    localStorage.setItem(editStateKey(orgId), JSON.stringify(state))
+  } catch {
+    // ignore storage errors
+  }
+}
+
+function clearEditState(orgId) {
+  try {
+    localStorage.removeItem(editStateKey(orgId))
+  } catch {
+    // ignore storage errors
+  }
 }
 
 // ---
@@ -206,10 +240,21 @@ export default function CustomerTable() {
   const { mutateAsync: saveContact } = useUpdateContact()
 
   // Edit mode toggle
-  const [isEditMode, setIsEditMode] = useState(false)
+  const [isEditMode, setIsEditMode] = useState(() => {
+    const stored = loadEditState(orgId)
+    return (
+      stored != null &&
+      (Object.keys(stored.dirtyMap ?? {}).length > 0 ||
+        Object.keys(stored.pendingPersonEdits ?? {}).length > 0 ||
+        Object.keys(stored.pendingPersonAdds ?? {}).length > 0 ||
+        Object.keys(stored.pendingPersonDeletes ?? {}).length > 0)
+    )
+  })
 
   // dirtyMap: { [contactId]: { [columnId]: newValue } }
-  const [dirtyMap, setDirtyMap] = useState({})
+  const [dirtyMap, setDirtyMap] = useState(
+    () => loadEditState(orgId)?.dirtyMap ?? {}
+  )
 
   // validationErrors: { [contactId]: { [columnId]: string } }
   const [validationErrors, setValidationErrors] = useState({})
@@ -230,11 +275,48 @@ export default function CustomerTable() {
 
   // Pending contact person mutations — all staged until global Commit
   // { [contactId]: { [personId]: { [field]: newValue } } }
-  const [pendingPersonEdits, setPendingPersonEdits] = useState({})
+  const [pendingPersonEdits, setPendingPersonEdits] = useState(
+    () => loadEditState(orgId)?.pendingPersonEdits ?? {}
+  )
   // { [contactId]: Array<{ _tempId, first_name, last_name, email, phone, mobile }> }
-  const [pendingPersonAdds, setPendingPersonAdds] = useState({})
+  const [pendingPersonAdds, setPendingPersonAdds] = useState(
+    () => loadEditState(orgId)?.pendingPersonAdds ?? {}
+  )
   // { [contactId]: personId[] }
-  const [pendingPersonDeletes, setPendingPersonDeletes] = useState({})
+  const [pendingPersonDeletes, setPendingPersonDeletes] = useState(
+    () => loadEditState(orgId)?.pendingPersonDeletes ?? {}
+  )
+
+  // Persist edit state to localStorage whenever it changes.
+  // Skip the initial render to avoid a redundant write on load.
+  const isFirstRender = useRef(true)
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false
+      return
+    }
+    const isEmpty =
+      Object.keys(dirtyMap).length === 0 &&
+      Object.keys(pendingPersonEdits).length === 0 &&
+      Object.keys(pendingPersonAdds).length === 0 &&
+      Object.keys(pendingPersonDeletes).length === 0
+    if (isEmpty) {
+      clearEditState(orgId)
+    } else {
+      saveEditState(orgId, {
+        dirtyMap,
+        pendingPersonEdits,
+        pendingPersonAdds,
+        pendingPersonDeletes,
+      })
+    }
+  }, [
+    orgId,
+    dirtyMap,
+    pendingPersonEdits,
+    pendingPersonAdds,
+    pendingPersonDeletes,
+  ])
 
   const markDirty = useCallback((contactId, columnId, value) => {
     setDirtyMap((prev) => ({
@@ -652,36 +734,38 @@ export default function CustomerTable() {
     return changes
   }, [dirtyMap, contacts, columns])
 
-  // Called by CommitModal — saves all dirty contacts and person mutations
-  async function handleCommit() {
-    const entries = Object.entries(dirtyMap)
-    const results = await Promise.allSettled(
-      entries.map(([contactId, dirtyFields]) => {
-        const original = contacts.find((c) => c.contact_id === contactId)
-        if (!original) return Promise.resolve()
-        return saveContact({
+  // Called by CommitModal — saves all dirty contacts and person mutations sequentially.
+  // onProgress(contactId, 'saving' | 'success' | 'error', error?) is called per contact.
+  async function handleCommit(onProgress) {
+    // --- Contact field edits (sequential to avoid rate limiting) ---
+    for (const [contactId, dirtyFields] of Object.entries(dirtyMap)) {
+      const original = contacts.find((c) => c.contact_id === contactId)
+      if (!original) continue
+      onProgress(contactId, 'saving')
+      try {
+        await saveContact({
           contactId,
           payload: buildPayload(original, dirtyFields),
         })
-      })
-    )
+        onProgress(contactId, 'success')
+        setDirtyMap((prev) => {
+          const next = { ...prev }
+          delete next[contactId]
+          return next
+        })
+      } catch (err) {
+        onProgress(contactId, 'error', err)
+        // Leave this contactId in dirtyMap so the user can retry
+      }
+    }
 
-    // Clear only successful saves from dirtyMap
-    setDirtyMap((prev) => {
-      const next = { ...prev }
-      entries.forEach(([contactId], i) => {
-        if (results[i].status === 'fulfilled') delete next[contactId]
-      })
-      return next
-    })
-
-    // Commit pending contact person operations
+    // --- Contact person operations ---
     const affectedContactIds = new Set()
 
     for (const [contactId, persons] of Object.entries(pendingPersonEdits)) {
       const cachedPersons =
         queryClient.getQueryData(['contactPersons', contactId]) ?? []
-      await Promise.allSettled(
+      const results = await Promise.allSettled(
         Object.entries(persons).map(([personId, fields]) => {
           const original = cachedPersons.find(
             (p) => p.contact_person_id === personId
@@ -708,11 +792,23 @@ export default function CustomerTable() {
           )
         })
       )
+      // Remove only the person edits that succeeded
+      const personIds = Object.keys(persons)
+      setPendingPersonEdits((prev) => {
+        const updatedPersons = { ...(prev[contactId] ?? {}) }
+        personIds.forEach((personId, i) => {
+          if (results[i].status === 'fulfilled') delete updatedPersons[personId]
+        })
+        const next = { ...prev }
+        if (Object.keys(updatedPersons).length === 0) delete next[contactId]
+        else next[contactId] = updatedPersons
+        return next
+      })
       affectedContactIds.add(contactId)
     }
 
     for (const [contactId, drafts] of Object.entries(pendingPersonAdds)) {
-      await Promise.allSettled(
+      const results = await Promise.allSettled(
         drafts.map((d) =>
           createContactPerson(accessToken, orgId, region, contactId, {
             first_name: d.first_name,
@@ -723,34 +819,41 @@ export default function CustomerTable() {
           })
         )
       )
+      // Remove only successful adds
+      setPendingPersonAdds((prev) => {
+        const remaining = (prev[contactId] ?? []).filter(
+          (_, i) => results[i].status === 'rejected'
+        )
+        const next = { ...prev }
+        if (remaining.length === 0) delete next[contactId]
+        else next[contactId] = remaining
+        return next
+      })
       affectedContactIds.add(contactId)
     }
 
     for (const [contactId, personIds] of Object.entries(pendingPersonDeletes)) {
-      await Promise.allSettled(
+      const results = await Promise.allSettled(
         personIds.map((personId) =>
           deleteContactPerson(accessToken, orgId, region, contactId, personId)
         )
       )
+      // Remove only successful deletes
+      setPendingPersonDeletes((prev) => {
+        const remaining = personIds.filter(
+          (_, i) => results[i].status === 'rejected'
+        )
+        const next = { ...prev }
+        if (remaining.length === 0) delete next[contactId]
+        else next[contactId] = remaining
+        return next
+      })
       affectedContactIds.add(contactId)
     }
 
     affectedContactIds.forEach((cid) =>
       queryClient.invalidateQueries({ queryKey: ['contactPersons', cid] })
     )
-    setPendingPersonEdits({})
-    setPendingPersonAdds({})
-    setPendingPersonDeletes({})
-
-    // Return a Map of contactId → Error|null for the modal to display
-    const resultMap = new Map()
-    entries.forEach(([contactId], i) => {
-      resultMap.set(
-        contactId,
-        results[i].status === 'rejected' ? results[i].reason : null
-      )
-    })
-    return resultMap
   }
 
   function enterEditMode() {
@@ -779,19 +882,26 @@ export default function CustomerTable() {
     setExpandedRows(new Set())
   }
 
-  function cancelEditMode() {
+  // Exit edit mode, preserving edits in localStorage for later
+  function exitEditMode() {
+    setValidationErrors({})
+    setIsEditMode(false)
+  }
+
+  // Discard all pending edits and exit edit mode
+  function discardEdits() {
     setDirtyMap({})
     setValidationErrors({})
     setPendingPersonEdits({})
     setPendingPersonAdds({})
     setPendingPersonDeletes({})
+    clearEditState(orgId)
     setIsEditMode(false)
   }
 
-  // After CommitModal closes following a successful save, exit edit mode
+  // After CommitModal closes, exit edit mode if all changes were saved
   function handleModalClose() {
     closeModal()
-    // If all changes were saved, exit edit mode
     if (
       Object.keys(dirtyMap).length === 0 &&
       Object.keys(pendingPersonEdits).length === 0 &&
@@ -844,9 +954,30 @@ export default function CustomerTable() {
                   {dirtyCount + personOpCount !== 1 ? 's' : ''}
                 </Badge>
               )}
-              <Button variant="default" size="sm" onClick={cancelEditMode}>
-                Cancel
-              </Button>
+              {dirtyCount + personOpCount > 0 ? (
+                <>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={exitEditMode}
+                    title="Exit edit mode — edits are saved and will be restored when you return"
+                  >
+                    Save &amp; Exit
+                  </Button>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    color="red"
+                    onClick={discardEdits}
+                  >
+                    Discard
+                  </Button>
+                </>
+              ) : (
+                <Button variant="default" size="sm" onClick={exitEditMode}>
+                  Exit
+                </Button>
+              )}
               <Button
                 size="sm"
                 color="orange"
