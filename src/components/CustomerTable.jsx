@@ -28,6 +28,7 @@ import EditableCell from './EditableCell.jsx'
 import CommitModal from './CommitModal.jsx'
 import ContactPersonsPanel from './ContactPersonsPanel.jsx'
 import CsvImportModal from './CsvImportModal.jsx'
+import { debugLog } from '../lib/debug.js'
 
 // Human-readable labels for fields that may appear in dirtyMap but don't have
 // a matching column header (billing sub-fields from CSV import, etc.)
@@ -813,12 +814,19 @@ export default function CustomerTable() {
     for (const [contactId, dirtyFields] of Object.entries(dirtyMap)) {
       const original = contacts.find((c) => c.contact_id === contactId)
       if (!original) continue
+      debugLog(
+        `commit: saving contact ${original.contact_name} (${contactId})`,
+        dirtyFields
+      )
       onProgress(contactId, 'saving')
       try {
         await saveContact({
           contactId,
           payload: buildPayload(original, dirtyFields),
         })
+        debugLog(
+          `commit: saved contact ${original.contact_name} (${contactId})`
+        )
         onProgress(contactId, 'success')
         setDirtyMap((prev) => {
           const next = { ...prev }
@@ -826,6 +834,10 @@ export default function CustomerTable() {
           return next
         })
       } catch (err) {
+        debugLog(
+          `commit: failed contact ${original.contact_name} (${contactId})`,
+          err
+        )
         onProgress(contactId, 'error', err)
         // Leave this contactId in dirtyMap so the user can retry
       }

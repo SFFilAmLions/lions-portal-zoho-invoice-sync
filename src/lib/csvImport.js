@@ -1,6 +1,7 @@
 /**
  * CSV import utilities — pure functions, no React dependencies.
  */
+import { debugLog } from './debug.js'
 
 /** Standard Zoho contact fields available as mapping targets. */
 export const STANDARD_ZOHO_FIELDS = [
@@ -172,6 +173,13 @@ export function applyMapping(
       const csvValue = normalizeWs(row[csvHeader])
       const currentValue = normalizeWs(getContactFieldValue(contact, zohoField))
       if (csvValue !== currentValue) {
+        debugLog(
+          `csv-diff contact=${contact.contact_name} field=${zohoField}`,
+          '\n  csv: ',
+          JSON.stringify(csvValue),
+          '\n  zoho:',
+          JSON.stringify(currentValue)
+        )
         fields[zohoField] = csvValue
       }
     }
@@ -181,5 +189,9 @@ export function applyMapping(
     }
   }
 
+  debugLog(
+    `csv-import summary: matched=${matchedCount} unmatched=${unmatchedCount}`,
+    `contacts with changes=${Object.keys(dirtyMap).length}`
+  )
   return { dirtyMap, matchedCount, unmatchedCount }
 }
