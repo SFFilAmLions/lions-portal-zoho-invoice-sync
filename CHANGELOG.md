@@ -1,3 +1,15 @@
+# [1.10.0](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/compare/v1.9.0...v1.10.0) (2026-04-10)
+
+### Bug Fixes
+
+- blank cells, csv drag-drop, export, and business contact display ([#62](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/62)) ([a29face](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/commit/a29face1334741185b96f690e72e761b1ae570d8)), closes [#10](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/10) [#57](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/57) [#6](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/6) [#43](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/43)
+- normalize whitespace in CSV import value comparison ([#58](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/58)) ([a44f116](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/commit/a44f1166d663d0f2b6710c393e668b0798077832)), closes [#54](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/54)
+
+### Features
+
+- add commit progress tracking, partial retry, and persistent edit storage ([#59](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/59)) ([d12e845](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/commit/d12e84568bcbc548f734afc01580ca14b62d77c9)), closes [#55](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/55)
+- add row-wide and column-wide revert buttons in edit mode ([#56](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/56)) ([553e841](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/commit/553e841fda8ad2e33fe861b6b9e6e2ca3c6e5fd9)), closes [#53](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/53)
+
 # [1.9.0](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/compare/v1.8.0...v1.9.0) (2026-04-09)
 
 ### Bug Fixes
