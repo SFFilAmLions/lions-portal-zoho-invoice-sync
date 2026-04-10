@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import {
   useReactTable,
   getCoreRowModel,
@@ -19,16 +19,19 @@ import { useDisclosure } from '@mantine/hooks'
 import { useQueryClient } from '@tanstack/react-query'
 import { useZohoAuth } from '../hooks/useZohoAuth.jsx'
 import { useCustomers, useUpdateContact } from '../hooks/useCustomers.js'
+import { useEditState } from '../hooks/useEditState.js'
 import {
   updateContactPerson,
   createContactPerson,
   deleteContactPerson,
 } from '../lib/zohoApi.js'
+import { getContactFieldValue } from '../lib/csvImport.js'
+import { debugLog } from '../lib/debug.js'
 import EditableCell from './EditableCell.jsx'
+import ColumnHeader from './ColumnHeader.jsx'
 import CommitModal from './CommitModal.jsx'
 import ContactPersonsPanel from './ContactPersonsPanel.jsx'
 import CsvImportModal from './CsvImportModal.jsx'
-import { debugLog } from '../lib/debug.js'
 
 // Human-readable labels for fields that may appear in dirtyMap but don't have
 // a matching column header (billing sub-fields from CSV import, etc.)
@@ -45,15 +48,6 @@ const PAGE_SIZE_OPTIONS = ['10', '25', '50', '100']
 const DEFAULT_PAGE_SIZE = '25'
 
 const COOKIE_NAME = 'lions-col-types'
-const COLUMN_TYPES = [
-  'text',
-  'email',
-  'phone',
-  'enum',
-  'url',
-  'boolean',
-  'date',
-]
 
 /** Auto-type a custom field based on its Zoho data_type */
 function defaultTypeForCustomField(cf) {
@@ -61,7 +55,7 @@ function defaultTypeForCustomField(cf) {
   return 'text'
 }
 
-// --- Cookie helpers (no external library) ---
+// --- Cookie helpers for column type overrides ---
 
 function readColTypesCookie() {
   try {
@@ -81,40 +75,6 @@ function writeColTypesCookie(overrides) {
   // 1-year expiry
   const expires = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toUTCString()
   document.cookie = `${COOKIE_NAME}=${value}; expires=${expires}; path=/; SameSite=Lax`
-}
-
-// ---
-
-// --- Edit state persistence ---
-
-function editStateKey(orgId) {
-  return `lions-edit-state-${orgId}`
-}
-
-function loadEditState(orgId) {
-  try {
-    const raw = localStorage.getItem(editStateKey(orgId))
-    if (!raw) return null
-    return JSON.parse(raw)
-  } catch {
-    return null
-  }
-}
-
-function saveEditState(orgId, state) {
-  try {
-    localStorage.setItem(editStateKey(orgId), JSON.stringify(state))
-  } catch {
-    // ignore storage errors
-  }
-}
-
-function clearEditState(orgId) {
-  try {
-    localStorage.removeItem(editStateKey(orgId))
-  } catch {
-    // ignore storage errors
-  }
 }
 
 // ---
@@ -230,61 +190,6 @@ function exportContactsToCsv(contacts, customFieldColumns, orgName) {
   URL.revokeObjectURL(url)
 }
 
-/** Small header component that renders the column name + type override badge */
-function ColumnHeader({
-  label,
-  columnId,
-  type,
-  onTypeChange,
-  isEditMode,
-  isColumnDirty,
-  onRevertColumn,
-}) {
-  return (
-    <Group gap={4} align="center" wrap="nowrap">
-      <Text size="sm" fw={600} style={{ whiteSpace: 'nowrap' }}>
-        {label}
-      </Text>
-      {isEditMode && isColumnDirty && (
-        <ActionIcon
-          size="xs"
-          variant="subtle"
-          color="orange"
-          onClick={onRevertColumn}
-          title="Revert all changes in this column"
-          aria-label="Revert column"
-        >
-          ↩
-        </ActionIcon>
-      )}
-      <Select
-        size="xs"
-        w={70}
-        value={type}
-        onChange={(val) => val && onTypeChange(columnId, val)}
-        data={COLUMN_TYPES}
-        allowDeselect={false}
-        comboboxProps={{ withinPortal: true }}
-        styles={{
-          input: {
-            fontSize: '10px',
-            paddingLeft: 4,
-            paddingRight: 20,
-            height: 20,
-            minHeight: 20,
-          },
-          section: { width: 16 },
-        }}
-        renderOption={({ option }) => (
-          <Badge size="xs" variant="light" color="gray">
-            {option.value}
-          </Badge>
-        )}
-      />
-    </Group>
-  )
-}
-
 export default function CustomerTable() {
   const { logout, orgs, orgId, accessToken, region } = useZohoAuth()
   const queryClient = useQueryClient()
@@ -296,25 +201,41 @@ export default function CustomerTable() {
   })
   const { mutateAsync: saveContact } = useUpdateContact()
 
-  // Edit mode toggle
-  const [isEditMode, setIsEditMode] = useState(() => {
-    const stored = loadEditState(orgId)
-    return (
-      stored != null &&
-      (Object.keys(stored.dirtyMap ?? {}).length > 0 ||
-        Object.keys(stored.pendingPersonEdits ?? {}).length > 0 ||
-        Object.keys(stored.pendingPersonAdds ?? {}).length > 0 ||
-        Object.keys(stored.pendingPersonDeletes ?? {}).length > 0)
-    )
-  })
+  const {
+    dirtyMap,
+    setDirtyMap,
+    markDirty,
+    clearDirty,
+    clearRowDirty,
+    clearColumnDirty,
+    isDirty,
+    isRowDirty,
+    isColumnDirty,
+    getDirtyValue,
+    dirtyCount,
+    setValidationError,
+    clearValidationError,
+    hasValidationErrors,
+    pendingPersonEdits,
+    setPendingPersonEdits,
+    pendingPersonAdds,
+    setPendingPersonAdds,
+    pendingPersonDeletes,
+    setPendingPersonDeletes,
+    personOpCount,
+    markPersonField,
+    clearPersonField,
+    revertPersonRow,
+    addPendingPerson,
+    cancelPendingAdd,
+    markPersonDelete,
+    unmarkPersonDelete,
+    clearAll,
+    hadStoredEdits,
+  } = useEditState(orgId)
 
-  // dirtyMap: { [contactId]: { [columnId]: newValue } }
-  const [dirtyMap, setDirtyMap] = useState(
-    () => loadEditState(orgId)?.dirtyMap ?? {}
-  )
-
-  // validationErrors: { [contactId]: { [columnId]: string } }
-  const [validationErrors, setValidationErrors] = useState({})
+  // Edit mode toggle — auto-enter if there were stored edits from a previous session
+  const [isEditMode, setIsEditMode] = useState(hadStoredEdits)
 
   // CommitModal open state
   const [modalOpened, { open: openModal, close: closeModal }] =
@@ -329,263 +250,6 @@ export default function CustomerTable() {
 
   // expandedRows: Set of contact_id strings currently expanded
   const [expandedRows, setExpandedRows] = useState(new Set())
-
-  // Pending contact person mutations — all staged until global Commit
-  // { [contactId]: { [personId]: { [field]: newValue } } }
-  const [pendingPersonEdits, setPendingPersonEdits] = useState(
-    () => loadEditState(orgId)?.pendingPersonEdits ?? {}
-  )
-  // { [contactId]: Array<{ _tempId, first_name, last_name, email, phone, mobile }> }
-  const [pendingPersonAdds, setPendingPersonAdds] = useState(
-    () => loadEditState(orgId)?.pendingPersonAdds ?? {}
-  )
-  // { [contactId]: personId[] }
-  const [pendingPersonDeletes, setPendingPersonDeletes] = useState(
-    () => loadEditState(orgId)?.pendingPersonDeletes ?? {}
-  )
-
-  // Persist edit state to localStorage whenever it changes.
-  // Skip the initial render to avoid a redundant write on load.
-  const isFirstRender = useRef(true)
-  useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false
-      return
-    }
-    const isEmpty =
-      Object.keys(dirtyMap).length === 0 &&
-      Object.keys(pendingPersonEdits).length === 0 &&
-      Object.keys(pendingPersonAdds).length === 0 &&
-      Object.keys(pendingPersonDeletes).length === 0
-    if (isEmpty) {
-      clearEditState(orgId)
-    } else {
-      saveEditState(orgId, {
-        dirtyMap,
-        pendingPersonEdits,
-        pendingPersonAdds,
-        pendingPersonDeletes,
-      })
-    }
-  }, [
-    orgId,
-    dirtyMap,
-    pendingPersonEdits,
-    pendingPersonAdds,
-    pendingPersonDeletes,
-  ])
-
-  const markDirty = useCallback((contactId, columnId, value) => {
-    setDirtyMap((prev) => ({
-      ...prev,
-      [contactId]: { ...(prev[contactId] ?? {}), [columnId]: value },
-    }))
-  }, [])
-
-  const clearDirty = useCallback((contactId, columnId) => {
-    setDirtyMap((prev) => {
-      const contactFields = { ...(prev[contactId] ?? {}) }
-      delete contactFields[columnId]
-      const next = { ...prev }
-      if (Object.keys(contactFields).length === 0) {
-        delete next[contactId]
-      } else {
-        next[contactId] = contactFields
-      }
-      return next
-    })
-  }, [])
-
-  const setValidationError = useCallback((contactId, columnId, error) => {
-    setValidationErrors((prev) => ({
-      ...prev,
-      [contactId]: { ...(prev[contactId] ?? {}), [columnId]: error },
-    }))
-  }, [])
-
-  const clearValidationError = useCallback((contactId, columnId) => {
-    setValidationErrors((prev) => {
-      const contactFields = { ...(prev[contactId] ?? {}) }
-      delete contactFields[columnId]
-      const next = { ...prev }
-      if (Object.keys(contactFields).length === 0) {
-        delete next[contactId]
-      } else {
-        next[contactId] = contactFields
-      }
-      return next
-    })
-  }, [])
-
-  const clearRowDirty = useCallback((contactId) => {
-    setDirtyMap((prev) => {
-      const next = { ...prev }
-      delete next[contactId]
-      return next
-    })
-    setValidationErrors((prev) => {
-      const next = { ...prev }
-      delete next[contactId]
-      return next
-    })
-  }, [])
-
-  const clearColumnDirty = useCallback((columnId) => {
-    setDirtyMap((prev) => {
-      const next = {}
-      for (const [cId, fields] of Object.entries(prev)) {
-        const remaining = { ...fields }
-        delete remaining[columnId]
-        if (Object.keys(remaining).length > 0) next[cId] = remaining
-      }
-      return next
-    })
-    setValidationErrors((prev) => {
-      const next = {}
-      for (const [cId, fields] of Object.entries(prev)) {
-        const remaining = { ...fields }
-        delete remaining[columnId]
-        if (Object.keys(remaining).length > 0) next[cId] = remaining
-      }
-      return next
-    })
-  }, [])
-
-  const isRowDirty = useCallback(
-    (contactId) => Object.keys(dirtyMap[contactId] ?? {}).length > 0,
-    [dirtyMap]
-  )
-
-  const isColumnDirty = useCallback(
-    (columnId) => Object.values(dirtyMap).some((fields) => columnId in fields),
-    [dirtyMap]
-  )
-
-  const isDirty = useCallback(
-    (contactId, columnId) => dirtyMap[contactId]?.[columnId] !== undefined,
-    [dirtyMap]
-  )
-
-  const getDirtyValue = useCallback(
-    (contactId, columnId) => dirtyMap[contactId]?.[columnId],
-    [dirtyMap]
-  )
-
-  const hasValidationErrors = useMemo(
-    () =>
-      Object.values(validationErrors).some(
-        (fields) => Object.keys(fields).length > 0
-      ),
-    [validationErrors]
-  )
-
-  const dirtyCount = useMemo(
-    () =>
-      Object.values(dirtyMap).reduce(
-        (acc, fields) => acc + Object.keys(fields).length,
-        0
-      ),
-    [dirtyMap]
-  )
-
-  const personOpCount = useMemo(() => {
-    const edits = Object.values(pendingPersonEdits)
-      .flatMap(Object.values)
-      .reduce((s, f) => s + Object.keys(f).length, 0)
-    const adds = Object.values(pendingPersonAdds).reduce(
-      (s, a) => s + a.length,
-      0
-    )
-    const dels = Object.values(pendingPersonDeletes).reduce(
-      (s, d) => s + d.length,
-      0
-    )
-    return edits + adds + dels
-  }, [pendingPersonEdits, pendingPersonAdds, pendingPersonDeletes])
-
-  const toggleExpanded = useCallback((contactId) => {
-    setExpandedRows((prev) => {
-      const next = new Set(prev)
-      if (next.has(contactId)) {
-        next.delete(contactId)
-      } else {
-        next.add(contactId)
-      }
-      return next
-    })
-  }, [])
-
-  const markPersonField = useCallback((contactId, personId, field, value) => {
-    setPendingPersonEdits((prev) => ({
-      ...prev,
-      [contactId]: {
-        ...(prev[contactId] ?? {}),
-        [personId]: { ...(prev[contactId]?.[personId] ?? {}), [field]: value },
-      },
-    }))
-  }, [])
-
-  const clearPersonField = useCallback((contactId, personId, field) => {
-    setPendingPersonEdits((prev) => {
-      const persons = { ...(prev[contactId] ?? {}) }
-      const fields = { ...(persons[personId] ?? {}) }
-      delete fields[field]
-      if (Object.keys(fields).length === 0) delete persons[personId]
-      else persons[personId] = fields
-      const next = { ...prev }
-      if (Object.keys(persons).length === 0) delete next[contactId]
-      else next[contactId] = persons
-      return next
-    })
-  }, [])
-
-  const revertPersonRow = useCallback((contactId, personId) => {
-    setPendingPersonEdits((prev) => {
-      const persons = { ...(prev[contactId] ?? {}) }
-      delete persons[personId]
-      const next = { ...prev }
-      if (Object.keys(persons).length === 0) delete next[contactId]
-      else next[contactId] = persons
-      return next
-    })
-  }, [])
-
-  const addPendingPerson = useCallback((contactId, draft) => {
-    setPendingPersonAdds((prev) => ({
-      ...prev,
-      [contactId]: [
-        ...(prev[contactId] ?? []),
-        { ...draft, _tempId: crypto.randomUUID() },
-      ],
-    }))
-  }, [])
-
-  const cancelPendingAdd = useCallback((contactId, tempId) => {
-    setPendingPersonAdds((prev) => {
-      const next = { ...prev }
-      next[contactId] = (next[contactId] ?? []).filter(
-        (d) => d._tempId !== tempId
-      )
-      if (next[contactId].length === 0) delete next[contactId]
-      return next
-    })
-  }, [])
-
-  const markPersonDelete = useCallback((contactId, personId) => {
-    setPendingPersonDeletes((prev) => ({
-      ...prev,
-      [contactId]: [...new Set([...(prev[contactId] ?? []), personId])],
-    }))
-  }, [])
-
-  const unmarkPersonDelete = useCallback((contactId, personId) => {
-    setPendingPersonDeletes((prev) => {
-      const next = { ...prev }
-      next[contactId] = (next[contactId] ?? []).filter((id) => id !== personId)
-      if (next[contactId].length === 0) delete next[contactId]
-      return next
-    })
-  }, [])
 
   const contacts = data?.contacts ?? []
   const pageContext = data?.page_context ?? {}
@@ -616,6 +280,18 @@ export default function CustomerTable() {
     setColTypeOverrides((prev) => {
       const next = { ...prev, [columnId]: newType }
       writeColTypesCookie(next)
+      return next
+    })
+  }, [])
+
+  const toggleExpanded = useCallback((contactId) => {
+    setExpandedRows((prev) => {
+      const next = new Set(prev)
+      if (next.has(contactId)) {
+        next.delete(contactId)
+      } else {
+        next.add(contactId)
+      }
       return next
     })
   }, [])
@@ -728,14 +404,7 @@ export default function CustomerTable() {
     (columnId) => {
       const values = new Set()
       for (const contact of contacts) {
-        let v
-        if (columnId === 'address') {
-          v = contact.billing_address?.address
-        } else if (columnId.startsWith('cf_')) {
-          v = contact.custom_fields?.find((f) => f.api_name === columnId)?.value
-        } else {
-          v = contact[columnId]
-        }
+        const v = getContactFieldValue(contact, columnId)
         if (v != null && v !== '') values.add(String(v))
       }
       return Array.from(values).sort()
@@ -770,31 +439,10 @@ export default function CustomerTable() {
       const contact = contacts.find((c) => c.contact_id === contactId)
       if (!contact) continue
       for (const [columnId, newValue] of Object.entries(fields)) {
-        // Resolve original value for this column
-        let original = ''
-        if (columnId === 'address') {
-          original = contact.billing_address?.address ?? ''
-        } else if (columnId === 'billing_city') {
-          original = contact.billing_address?.city ?? ''
-        } else if (columnId === 'billing_state') {
-          original = contact.billing_address?.state ?? ''
-        } else if (columnId === 'billing_zip') {
-          original = contact.billing_address?.zip ?? ''
-        } else if (columnId === 'billing_country') {
-          original = contact.billing_address?.country ?? ''
-        } else if (columnId.startsWith('cf_')) {
-          original =
-            contact.custom_fields?.find((f) => f.api_name === columnId)
-              ?.value ?? ''
-        } else {
-          original = contact[columnId] ?? ''
-        }
-
-        // Resolve human-readable field label from column definitions or fallback map
+        const original = getContactFieldValue(contact, columnId)
         const colDef = columns.find((c) => (c.accessorKey ?? c.id) === columnId)
         const fieldLabel =
           colDef?.header ?? EXTRA_FIELD_LABELS[columnId] ?? columnId
-
         changes.push({
           contactId,
           contactName: contact.contact_name,
@@ -940,10 +588,6 @@ export default function CustomerTable() {
     )
   }
 
-  function enterEditMode() {
-    setIsEditMode(true)
-  }
-
   function handleCsvApply(importedDirtyMap) {
     setDirtyMap((prev) => {
       const next = { ...prev }
@@ -968,18 +612,12 @@ export default function CustomerTable() {
 
   // Exit edit mode, preserving edits in localStorage for later
   function exitEditMode() {
-    setValidationErrors({})
     setIsEditMode(false)
   }
 
   // Discard all pending edits and exit edit mode
   function discardEdits() {
-    setDirtyMap({})
-    setValidationErrors({})
-    setPendingPersonEdits({})
-    setPendingPersonAdds({})
-    setPendingPersonDeletes({})
-    clearEditState(orgId)
+    clearAll()
     setIsEditMode(false)
   }
 
@@ -1017,7 +655,11 @@ export default function CustomerTable() {
         <Group gap="xs" align="center">
           {!isEditMode && (
             <>
-              <Button size="sm" variant="light" onClick={enterEditMode}>
+              <Button
+                size="sm"
+                variant="light"
+                onClick={() => setIsEditMode(true)}
+              >
                 Edit
               </Button>
               <Button
