@@ -1,3 +1,9 @@
+# [1.11.0](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/compare/v1.10.0...v1.11.0) (2026-04-11)
+
+### Features
+
+- add debug mode and improve commit progress UX ([#63](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/63)) ([4d986bb](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/commit/4d986bbda5e1227e2e5fb1e02ed858c166ac0ae8)), closes [#61](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/61) [#55](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/55) [#61](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/61) [#55](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/55)
+
 # [1.10.0](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/compare/v1.9.0...v1.10.0) (2026-04-10)
 
 ### Bug Fixes
