@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 import {
   useReactTable,
   getCoreRowModel,
@@ -253,6 +253,43 @@ export default function CustomerTable() {
 
   const contacts = data?.contacts ?? []
   const pageContext = data?.page_context ?? {}
+
+  // Reconcile dirtyMap against freshly-loaded contacts: drop any entry where
+  // the stored dirty value already equals the current server value. This
+  // prevents stale localStorage entries (e.g. from a previous CSV import that
+  // set a field to '' when the server also has '') from showing as false-positive
+  // dirty cells on the next visit.
+  useEffect(() => {
+    if (!contacts.length) return
+    const normalize = (s) =>
+      String(s ?? '')
+        .trim()
+        .replace(/\s+/g, ' ')
+    setDirtyMap((prev) => {
+      let changed = false
+      const next = { ...prev }
+      for (const [contactId, fields] of Object.entries(next)) {
+        const contact = contacts.find((c) => c.contact_id === contactId)
+        if (!contact) continue
+        const remaining = { ...fields }
+        for (const [fieldId, dirtyValue] of Object.entries(remaining)) {
+          if (
+            normalize(dirtyValue) ===
+            normalize(getContactFieldValue(contact, fieldId))
+          ) {
+            delete remaining[fieldId]
+            changed = true
+          }
+        }
+        if (Object.keys(remaining).length === 0) {
+          delete next[contactId]
+        } else {
+          next[contactId] = remaining
+        }
+      }
+      return changed ? next : prev
+    })
+  }, [contacts]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Build columns dynamically, adding any custom fields from the first contact
   const customFieldColumns = useMemo(() => {
