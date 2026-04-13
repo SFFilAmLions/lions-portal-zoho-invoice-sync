@@ -31,17 +31,20 @@ import EditableCell from './EditableCell.jsx'
 import ColumnHeader from './ColumnHeader.jsx'
 import CommitModal from './CommitModal.jsx'
 import ContactPersonsPanel from './ContactPersonsPanel.jsx'
+import ContactDetailPanel from './ContactDetailPanel.jsx'
 import CsvImportModal from './CsvImportModal.jsx'
 
 // Human-readable labels for fields that may appear in dirtyMap but don't have
-// a matching column header (billing sub-fields from CSV import, etc.)
+// a matching column header (detail panel fields, billing sub-fields from CSV, etc.)
 const EXTRA_FIELD_LABELS = {
+  mobile: 'Mobile',
+  company_name: 'Company',
+  customer_sub_type: 'Type',
+  address: 'Billing Street',
   billing_city: 'Billing City',
   billing_state: 'Billing State',
   billing_zip: 'Billing Zip',
   billing_country: 'Billing Country',
-  company_name: 'Company',
-  customer_sub_type: 'Type',
 }
 
 const PAGE_SIZE_OPTIONS = ['10', '25', '50', '100']
@@ -102,17 +105,20 @@ function buildPayload(original, dirtyFields) {
     original.company_name ??
     (original.customer_sub_type === 'business' ? original.contact_name : '')
 
+  const computedName =
+    subType === 'business'
+      ? companyName || `${first} ${last}`.trim()
+      : `${first} ${last}`.trim()
+
   const payload = {
-    contact_name:
-      subType === 'business'
-        ? companyName || `${first} ${last}`.trim()
-        : `${first} ${last}`.trim(),
+    contact_name: computedName || original.contact_name || '',
     customer_sub_type: subType,
     company_name: companyName,
     first_name: first,
     last_name: last,
-    email: original.email ?? '',
-    phone: original.phone ?? '',
+    email: dirtyFields.email ?? original.email ?? '',
+    phone: dirtyFields.phone ?? original.phone ?? '',
+    mobile: dirtyFields.mobile ?? original.mobile ?? '',
     billing_address: {
       ...(original.billing_address ?? {}),
     },
@@ -254,11 +260,15 @@ export default function CustomerTable() {
   const contacts = data?.contacts ?? []
   const pageContext = data?.page_context ?? {}
 
-  // Build columns dynamically, adding any custom fields from the first contact
-  const customFieldColumns = useMemo(() => {
+  // Build custom field columns dynamically from the first contact.
+  // cf_member_id and cf_member_type are placed at specific table positions;
+  // all other custom fields come after phone.
+  const { pinnedCustomCols, otherCustomCols } = useMemo(() => {
     const first = contacts[0]
-    if (!first?.custom_fields) return []
-    return first.custom_fields.map((cf) => ({
+    if (!first?.custom_fields)
+      return { pinnedCustomCols: [], otherCustomCols: [] }
+    const PINNED = ['cf_member_id', 'cf_member_type']
+    const all = first.custom_fields.map((cf) => ({
       accessorFn: (row) =>
         row.custom_fields?.find((f) => f.api_name === cf.api_name)?.value ?? '',
       id: cf.api_name,
@@ -266,7 +276,17 @@ export default function CustomerTable() {
       cell: EditableCell,
       meta: { defaultType: defaultTypeForCustomField(cf) },
     }))
+    return {
+      pinnedCustomCols: all.filter((c) => PINNED.includes(c.id)),
+      otherCustomCols: all.filter((c) => !PINNED.includes(c.id)),
+    }
   }, [contacts])
+
+  // Combined for legacy references (CSV export etc.)
+  const customFieldColumns = useMemo(
+    () => [...pinnedCustomCols, ...otherCustomCols],
+    [pinnedCustomCols, otherCustomCols]
+  )
 
   /** Resolve effective type for a column (override wins over default) */
   const getColType = useCallback(
@@ -348,13 +368,6 @@ export default function CustomerTable() {
         },
       },
       {
-        accessorFn: (row) => row.customer_sub_type ?? 'individual',
-        id: 'customer_sub_type',
-        header: 'Type',
-        cell: EditableCell,
-        meta: { defaultType: 'enum', noTypeSelector: true },
-      },
-      {
         accessorKey: 'first_name',
         header: 'First Name',
         cell: EditableCell,
@@ -366,15 +379,7 @@ export default function CustomerTable() {
         cell: EditableCell,
         meta: { defaultType: 'text' },
       },
-      {
-        accessorFn: (row) =>
-          row.company_name ??
-          (row.customer_sub_type === 'business' ? row.contact_name : ''),
-        id: 'company_name',
-        header: 'Company',
-        cell: EditableCell,
-        meta: { defaultType: 'text', noTypeSelector: true },
-      },
+      ...pinnedCustomCols,
       {
         accessorKey: 'email',
         header: 'Email',
@@ -387,16 +392,15 @@ export default function CustomerTable() {
         cell: EditableCell,
         meta: { defaultType: 'phone' },
       },
-      {
-        accessorFn: (row) => row.billing_address?.address ?? '',
-        id: 'address',
-        header: 'Billing Address',
-        cell: EditableCell,
-        meta: { defaultType: 'text' },
-      },
-      ...customFieldColumns,
+      ...otherCustomCols,
     ],
-    [customFieldColumns, expandedRows, toggleExpanded, queryClient]
+    [
+      pinnedCustomCols,
+      otherCustomCols,
+      expandedRows,
+      toggleExpanded,
+      queryClient,
+    ]
   )
 
   /** Collect all enum values for a column from currently-loaded contacts */
@@ -446,6 +450,7 @@ export default function CustomerTable() {
         changes.push({
           contactId,
           contactName: contact.contact_name,
+          fieldId: columnId,
           field: fieldLabel,
           original,
           newValue,
@@ -812,11 +817,23 @@ export default function CustomerTable() {
                     ))}
                   </Table.Tr>,
                   isExpanded && (
-                    <Table.Tr key={`${row.id}-persons`}>
+                    <Table.Tr key={`${row.id}-detail`}>
                       <Table.Td
                         colSpan={columns.length}
                         style={{ padding: 0, background: '#f9fafb' }}
                       >
+                        <ContactDetailPanel
+                          contact={row.original}
+                          isEditMode={isEditMode}
+                          isDirty={isDirty}
+                          getDirtyValue={getDirtyValue}
+                          markDirty={markDirty}
+                          clearDirty={clearDirty}
+                          setValidationError={setValidationError}
+                          clearValidationError={clearValidationError}
+                          getColType={getColType}
+                          getEnumValues={getEnumValues}
+                        />
                         <ContactPersonsPanel
                           contactId={row.id}
                           contacts={contacts}

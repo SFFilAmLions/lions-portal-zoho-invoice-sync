@@ -52,8 +52,28 @@ export const IGNORE_BY_DEFAULT = new Set([
   'Account Name (Local)',
 ])
 
+/**
+ * Derived field rules auto-detected for the Lions Club CSV format.
+ * A derived rule combines multiple CSV columns into one Zoho field.
+ * Only applied when ALL part.csvHeader values are present in the file's headers.
+ *
+ * Rule shape: { target, parts: [{ csvHeader, prefix }], skipEmpty }
+ *   combined = part[0].value + (prefix + partN.value) for each non-empty part
+ */
+export const AUTO_DERIVED_RULES = [
+  {
+    target: 'last_name',
+    parts: [
+      { csvHeader: 'Contact: Last Name', prefix: '' },
+      { csvHeader: 'Contact: Suffix', prefix: ' ' },
+    ],
+    skipEmpty: true,
+  },
+]
+
 const MAPPING_STORAGE_KEY = 'csvImport.mapping'
 const MATCH_KEY_STORAGE_KEY = 'csvImport.matchKey'
+const DERIVED_RULES_STORAGE_KEY = 'csvImport.derivedRules'
 
 export function loadSavedMapping() {
   try {
@@ -92,14 +112,68 @@ export function saveMatchKey(csvHeader, zohoField) {
   }
 }
 
+export function loadSavedDerivedRules() {
+  try {
+    const raw = localStorage.getItem(DERIVED_RULES_STORAGE_KEY)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
+export function saveDerivedRules(rules) {
+  try {
+    localStorage.setItem(DERIVED_RULES_STORAGE_KEY, JSON.stringify(rules))
+  } catch {
+    // ignore storage errors
+  }
+}
+
+/**
+ * Returns the subset of AUTO_DERIVED_RULES that are applicable to the given
+ * CSV headers (all required source columns are present in the file).
+ */
+export function initialDerivedRules(headers) {
+  const headerSet = new Set(headers)
+  return AUTO_DERIVED_RULES.filter((rule) =>
+    rule.parts.every((p) => headerSet.has(p.csvHeader))
+  )
+}
+
+/**
+ * Try to match a CSV header to a custom field's api_name by fuzzy label
+ * comparison. Strips "Contact: " prefix and normalizes whitespace/case.
+ */
+function fuzzyMatchCustomField(csvHeader, customFields) {
+  const normalized = csvHeader
+    .replace(/^Contact:\s*/i, '')
+    .toLowerCase()
+    .replace(/\s+/g, '')
+  const match = customFields.find((cf) => {
+    const label = (cf.label ?? cf.api_name).toLowerCase().replace(/\s+/g, '')
+    return label === normalized
+  })
+  return match?.api_name ?? null
+}
+
 /**
  * Build the initial column mapping for a set of CSV headers.
- * Prefers saved mapping, falls back to AUTO_MAP, then '__ignore__'.
+ * Prefers saved mapping, falls back to AUTO_MAP, then fuzzy custom-field
+ * label matching, then '__ignore__'.
+ *
+ * @param {string[]} headers
+ * @param {Array<{api_name, label}>} customFields — from the loaded contacts
  */
-export function initialMapping(headers) {
+export function initialMapping(headers, customFields = []) {
   const saved = loadSavedMapping() ?? {}
   return Object.fromEntries(
-    headers.map((h) => [h, saved[h] ?? AUTO_MAP[h] ?? '__ignore__'])
+    headers.map((h) => [
+      h,
+      saved[h] ??
+        AUTO_MAP[h] ??
+        fuzzyMatchCustomField(h, customFields) ??
+        '__ignore__',
+    ])
   )
 }
 
@@ -130,26 +204,31 @@ function normalizeWs(s) {
 }
 
 /**
- * Apply a column mapping to parsed CSV rows, producing dirty-map entries.
+ * Apply a column mapping (and optional derived rules) to parsed CSV rows,
+ * producing dirty-map entries.
  *
- * @param {Object[]} csvRows - rows from PapaParse (header: true)
- * @param {Object}   mapping - { [csvHeader]: zohoFieldId | '__ignore__' }
- * @param {string}   matchCsvHeader - CSV column used to identify the contact
- * @param {string}   matchZohoField - Zoho field to compare match value against
- * @param {Object[]} contacts - loaded Zoho contacts
- * @returns {{ dirtyMap: Object, matchedCount: number, unmatchedCount: number }}
- *   dirtyMap: { [contactId]: { [zohoFieldId]: newValue } }
+ * @param {Object[]} csvRows      - rows from PapaParse (header: true)
+ * @param {Object}   mapping      - { [csvHeader]: zohoFieldId | '__ignore__' }
+ * @param {string}   matchCsvHeader
+ * @param {string}   matchZohoField
+ * @param {Object[]} contacts     - loaded Zoho contacts
+ * @param {Object[]} derivedRules - optional derived-field combination rules
+ * @returns {{ dirtyMap, matchedCount, unmatchedCount }}
  */
 export function applyMapping(
   csvRows,
   mapping,
   matchCsvHeader,
   matchZohoField,
-  contacts
+  contacts,
+  derivedRules = []
 ) {
   const dirtyMap = {}
   let matchedCount = 0
   let unmatchedCount = 0
+
+  // Fields handled by derived rules — skip in the regular 1:1 loop
+  const derivedTargets = new Set(derivedRules.map((r) => r.target))
 
   for (const row of csvRows) {
     const matchValue = normalizeWs(row[matchCsvHeader])
@@ -168,8 +247,10 @@ export function applyMapping(
     const contactId = contact.contact_id
     const fields = {}
 
+    // Regular 1:1 mapping (skip fields covered by a derived rule)
     for (const [csvHeader, zohoField] of Object.entries(mapping)) {
       if (zohoField === '__ignore__') continue
+      if (derivedTargets.has(zohoField)) continue
       const csvValue = normalizeWs(row[csvHeader])
       const currentValue = normalizeWs(getContactFieldValue(contact, zohoField))
       if (csvValue !== currentValue) {
@@ -181,6 +262,29 @@ export function applyMapping(
           JSON.stringify(currentValue)
         )
         fields[zohoField] = csvValue
+      }
+    }
+
+    // Derived rules — combine multiple CSV columns into one Zoho field
+    for (const rule of derivedRules) {
+      let combined = ''
+      for (const part of rule.parts) {
+        const v = normalizeWs(row[part.csvHeader] ?? '')
+        if (!v && rule.skipEmpty) continue
+        combined = combined === '' ? v : combined + part.prefix + v
+      }
+      const currentValue = normalizeWs(
+        getContactFieldValue(contact, rule.target)
+      )
+      if (combined !== currentValue) {
+        debugLog(
+          `csv-derived contact=${contact.contact_name} field=${rule.target}`,
+          '\n  combined:',
+          JSON.stringify(combined),
+          '\n  zoho:   ',
+          JSON.stringify(currentValue)
+        )
+        fields[rule.target] = combined
       }
     }
 

@@ -1,21 +1,28 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import Papa from 'papaparse'
 import {
+  ActionIcon,
   Alert,
   Button,
+  Checkbox,
   Group,
   Modal,
+  Paper,
   ScrollArea,
   Select,
   Stack,
   Table,
   Text,
+  TextInput,
 } from '@mantine/core'
 import {
   STANDARD_ZOHO_FIELDS,
   applyMapping,
+  initialDerivedRules,
   initialMapping,
+  loadSavedDerivedRules,
   loadSavedMatchKey,
+  saveDerivedRules,
   saveMapping,
   saveMatchKey,
 } from '../lib/csvImport.js'
@@ -55,6 +62,11 @@ export default function CsvImportModal({
   const [matchCsvHeader, setMatchCsvHeader] = useState(null)
   const [matchZohoField, setMatchZohoField] = useState(null)
 
+  // Derived field rules: [{ target, parts: [{ csvHeader, prefix }], skipEmpty }]
+  const [derivedRules, setDerivedRules] = useState(
+    () => loadSavedDerivedRules() ?? []
+  )
+
   // Result after applying
   const [applyResult, setApplyResult] = useState(null) // { matchedCount, unmatchedCount }
 
@@ -66,6 +78,7 @@ export default function CsvImportModal({
       setCsvRows([])
       setParseError(null)
       setMapping({})
+      setDerivedRules(loadSavedDerivedRules() ?? [])
       setApplyResult(null)
       // Restore saved match key
       const saved = loadSavedMatchKey()
@@ -89,36 +102,45 @@ export default function CsvImportModal({
     })),
   ]
 
-  const parseFile = useCallback((file) => {
-    setParseError(null)
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: (result) => {
-        if (result.errors.length > 0 && result.data.length === 0) {
-          setParseError(result.errors[0].message)
-          return
-        }
-        const headers = result.meta.fields ?? []
-        setCsvHeaders(headers)
-        setCsvRows(result.data)
-        const m = initialMapping(headers)
-        setMapping(m)
+  const parseFile = useCallback(
+    (file) => {
+      setParseError(null)
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: (result) => {
+          if (result.errors.length > 0 && result.data.length === 0) {
+            setParseError(result.errors[0].message)
+            return
+          }
+          const headers = result.meta.fields ?? []
+          setCsvHeaders(headers)
+          setCsvRows(result.data)
+          setMapping(initialMapping(headers, customFields))
 
-        // Auto-select match key if saved one is present in this file's headers
-        const saved = loadSavedMatchKey()
-        if (saved && headers.includes(saved.csvHeader)) {
-          setMatchCsvHeader(saved.csvHeader)
-          setMatchZohoField(saved.zohoField)
-        }
+          // Merge auto-detected derived rules with any saved rules
+          setDerivedRules((prev) => {
+            const auto = initialDerivedRules(headers)
+            const savedTargets = new Set(prev.map((r) => r.target))
+            return [...prev, ...auto.filter((r) => !savedTargets.has(r.target))]
+          })
 
-        setStep('mapping')
-      },
-      error: (err) => {
-        setParseError(err.message)
-      },
-    })
-  }, [])
+          // Auto-select match key if saved one is present in this file's headers
+          const saved = loadSavedMatchKey()
+          if (saved && headers.includes(saved.csvHeader)) {
+            setMatchCsvHeader(saved.csvHeader)
+            setMatchZohoField(saved.zohoField)
+          }
+
+          setStep('mapping')
+        },
+        error: (err) => {
+          setParseError(err.message)
+        },
+      })
+    },
+    [customFields]
+  )
 
   function handleFileChange(e) {
     const file = e.target.files?.[0]
@@ -170,13 +192,15 @@ export default function CsvImportModal({
 
     saveMapping(mapping)
     saveMatchKey(matchCsvHeader, matchZohoField)
+    saveDerivedRules(derivedRules)
 
     const { dirtyMap, matchedCount, unmatchedCount } = applyMapping(
       csvRows,
       mapping,
       matchCsvHeader,
       matchZohoField,
-      contacts
+      contacts,
+      derivedRules
     )
 
     setApplyResult({ matchedCount, unmatchedCount })
@@ -188,6 +212,70 @@ export default function CsvImportModal({
 
     onApply(dirtyMap)
     onClose()
+  }
+
+  // --- Derived rules helpers ---
+
+  function addRule() {
+    setDerivedRules((prev) => [
+      ...prev,
+      {
+        target: '',
+        parts: [{ csvHeader: '', prefix: '' }],
+        skipEmpty: true,
+      },
+    ])
+  }
+
+  function removeRule(idx) {
+    setDerivedRules((prev) => prev.filter((_, i) => i !== idx))
+  }
+
+  function updateRuleTarget(idx, target) {
+    setDerivedRules((prev) =>
+      prev.map((r, i) => (i === idx ? { ...r, target } : r))
+    )
+  }
+
+  function updateRuleSkipEmpty(idx, skipEmpty) {
+    setDerivedRules((prev) =>
+      prev.map((r, i) => (i === idx ? { ...r, skipEmpty } : r))
+    )
+  }
+
+  function addRulePart(idx) {
+    setDerivedRules((prev) =>
+      prev.map((r, i) =>
+        i === idx
+          ? { ...r, parts: [...r.parts, { csvHeader: '', prefix: ' ' }] }
+          : r
+      )
+    )
+  }
+
+  function removeRulePart(ruleIdx, partIdx) {
+    setDerivedRules((prev) =>
+      prev.map((r, i) =>
+        i === ruleIdx
+          ? { ...r, parts: r.parts.filter((_, pi) => pi !== partIdx) }
+          : r
+      )
+    )
+  }
+
+  function updateRulePartField(ruleIdx, partIdx, field, value) {
+    setDerivedRules((prev) =>
+      prev.map((r, i) =>
+        i === ruleIdx
+          ? {
+              ...r,
+              parts: r.parts.map((p, pi) =>
+                pi === partIdx ? { ...p, [field]: value } : p
+              ),
+            }
+          : r
+      )
+    )
   }
 
   // Example value for a CSV header (first non-empty row)
@@ -294,6 +382,126 @@ export default function CsvImportModal({
                 searchable
               />
             </Group>
+          </Stack>
+
+          {/* Derived field rules */}
+          <Stack gap={4}>
+            <Text size="sm" fw={600}>
+              Derived field rules
+            </Text>
+            <Text size="xs" c="dimmed">
+              Combine multiple CSV columns into one Zoho field (e.g. Last Name +
+              Suffix).
+            </Text>
+            {derivedRules.map((rule, ruleIdx) => (
+              <Paper key={ruleIdx} withBorder p="xs">
+                <Stack gap="xs">
+                  <Group gap="xs" align="flex-end" wrap="wrap">
+                    <Select
+                      label="Zoho field"
+                      size="xs"
+                      w={160}
+                      value={rule.target || null}
+                      onChange={(val) => val && updateRuleTarget(ruleIdx, val)}
+                      data={zohoFieldOptions.filter(
+                        (o) => o.value !== '__ignore__'
+                      )}
+                      placeholder="Select…"
+                      searchable
+                      allowDeselect={false}
+                    />
+                    <Text size="xs" pb={6}>
+                      ←
+                    </Text>
+                    {rule.parts.map((part, partIdx) => (
+                      <Group key={partIdx} gap={4} align="flex-end">
+                        {partIdx > 0 && (
+                          <TextInput
+                            label="Prefix"
+                            size="xs"
+                            w={60}
+                            value={part.prefix}
+                            onChange={(e) =>
+                              updateRulePartField(
+                                ruleIdx,
+                                partIdx,
+                                'prefix',
+                                e.target.value
+                              )
+                            }
+                          />
+                        )}
+                        <Select
+                          label={
+                            partIdx === 0 ? 'Primary source' : 'Additional'
+                          }
+                          size="xs"
+                          w={220}
+                          value={part.csvHeader || null}
+                          onChange={(val) =>
+                            val &&
+                            updateRulePartField(
+                              ruleIdx,
+                              partIdx,
+                              'csvHeader',
+                              val
+                            )
+                          }
+                          data={csvHeaders}
+                          placeholder="Select column…"
+                          searchable
+                          allowDeselect={false}
+                          comboboxProps={{ withinPortal: true }}
+                        />
+                        {partIdx > 0 && (
+                          <ActionIcon
+                            size="sm"
+                            variant="subtle"
+                            color="red"
+                            onClick={() => removeRulePart(ruleIdx, partIdx)}
+                          >
+                            ×
+                          </ActionIcon>
+                        )}
+                      </Group>
+                    ))}
+                    <ActionIcon
+                      size="sm"
+                      variant="subtle"
+                      title="Add source column"
+                      onClick={() => addRulePart(ruleIdx)}
+                    >
+                      +
+                    </ActionIcon>
+                    <ActionIcon
+                      size="sm"
+                      variant="subtle"
+                      color="red"
+                      title="Remove rule"
+                      onClick={() => removeRule(ruleIdx)}
+                    >
+                      ×
+                    </ActionIcon>
+                  </Group>
+                  <Checkbox
+                    size="xs"
+                    label="Skip additional parts when empty"
+                    checked={rule.skipEmpty}
+                    onChange={(e) =>
+                      updateRuleSkipEmpty(ruleIdx, e.currentTarget.checked)
+                    }
+                  />
+                </Stack>
+              </Paper>
+            ))}
+            <Button
+              size="xs"
+              variant="subtle"
+              style={{ alignSelf: 'flex-start' }}
+              onClick={addRule}
+            >
+              + Add rule
+            </Button>
           </Stack>
 
           {/* Column mapping table */}

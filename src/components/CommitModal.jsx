@@ -1,20 +1,29 @@
 import { useMemo, useState } from 'react'
 import {
   Alert,
+  Box,
   Button,
   Group,
   Loader,
   Modal,
+  Paper,
   Progress,
   ScrollArea,
   Stack,
-  Table,
   Text,
   Tooltip,
 } from '@mantine/core'
 
+const ADDRESS_FIELDS = new Set([
+  'address',
+  'billing_city',
+  'billing_state',
+  'billing_zip',
+  'billing_country',
+])
+
 /**
- * CommitModal — lists all pending changes and confirms save.
+ * CommitModal — lists all pending changes grouped per contact and confirms save.
  *
  * Props:
  *   opened       {boolean}
@@ -22,6 +31,7 @@ import {
  *   pendingChanges {Array<{
  *     contactId: string,
  *     contactName: string,
+ *     fieldId: string,
  *     field: string,
  *     original: string,
  *     newValue: string,
@@ -44,11 +54,24 @@ export default function CommitModal({
   // Ordered log of completed contacts: [{ contactName, status, errorMsg? }]
   const [logEntries, setLogEntries] = useState([])
 
+  // Group pendingChanges by contactId
+  const grouped = useMemo(() => {
+    const map = new Map()
+    for (const change of pendingChanges) {
+      if (!map.has(change.contactId)) {
+        map.set(change.contactId, {
+          contactId: change.contactId,
+          contactName: change.contactName,
+          fields: [],
+        })
+      }
+      map.get(change.contactId).fields.push(change)
+    }
+    return Array.from(map.values())
+  }, [pendingChanges])
+
   // Total unique contacts to save (for progress bar)
-  const totalContacts = useMemo(
-    () => new Set(pendingChanges.map((c) => c.contactId)).size,
-    [pendingChanges]
-  )
+  const totalContacts = grouped.length
 
   const completed = Object.values(rowStatus).filter(
     (s) => s === 'success' || s === 'error'
@@ -185,43 +208,65 @@ export default function CommitModal({
           </Stack>
         )}
 
-        <Table withTableBorder withColumnBorders fz="sm">
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th w={32}></Table.Th>
-              <Table.Th>Contact</Table.Th>
-              <Table.Th>Field</Table.Th>
-              <Table.Th>Original</Table.Th>
-              <Table.Th>New value</Table.Th>
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
-            {pendingChanges.map((change, i) => {
-              const status = rowStatus[change.contactId]
-              const errMsg = rowErrors[change.contactId]
-              return (
-                <Table.Tr
-                  key={i}
-                  style={
-                    status === 'error'
-                      ? { backgroundColor: '#fff1f2' }
-                      : status === 'success'
-                        ? { backgroundColor: '#f0fdf4' }
-                        : undefined
+        {/* Per-contact change cards */}
+        <Stack gap="sm">
+          {grouped.map(({ contactId, contactName, fields }) => {
+            const status = rowStatus[contactId]
+            const errMsg = rowErrors[contactId]
+            const addressFields = fields.filter((f) =>
+              ADDRESS_FIELDS.has(f.fieldId)
+            )
+            const otherFields = fields.filter(
+              (f) => !ADDRESS_FIELDS.has(f.fieldId)
+            )
+            return (
+              <Paper
+                key={contactId}
+                withBorder
+                p="sm"
+                style={
+                  status === 'error'
+                    ? { borderColor: '#e03131', backgroundColor: '#fff1f2' }
+                    : status === 'success'
+                      ? { borderColor: '#2f9e44', backgroundColor: '#f0fdf4' }
+                      : undefined
+                }
+              >
+                {/* Card header: contact name + status icon */}
+                <Group
+                  justify="space-between"
+                  mb={
+                    otherFields.length > 0 || addressFields.length > 0 ? 6 : 0
                   }
                 >
-                  <Table.Td ta="center" py={2}>
-                    <StatusIcon status={status} errorMsg={errMsg} />
-                  </Table.Td>
-                  <Table.Td>{change.contactName}</Table.Td>
-                  <Table.Td>{change.field}</Table.Td>
-                  <Table.Td c="dimmed">{change.original}</Table.Td>
-                  <Table.Td fw={500}>{change.newValue}</Table.Td>
-                </Table.Tr>
-              )
-            })}
-          </Table.Tbody>
-        </Table>
+                  <Text size="sm" fw={600}>
+                    {contactName}
+                  </Text>
+                  <StatusIcon status={status} errorMsg={errMsg} />
+                </Group>
+
+                {/* Non-address fields */}
+                {otherFields.map((change) => (
+                  <FieldRow key={change.fieldId} change={change} />
+                ))}
+
+                {/* Address fields grouped */}
+                {addressFields.length > 0 && (
+                  <Box mt={otherFields.length > 0 ? 4 : 0}>
+                    <Text size="xs" fw={600} c="dimmed" mb={2}>
+                      Billing Address
+                    </Text>
+                    <Box pl="md">
+                      {addressFields.map((change) => (
+                        <FieldRow key={change.fieldId} change={change} />
+                      ))}
+                    </Box>
+                  </Box>
+                )}
+              </Paper>
+            )
+          })}
+        </Stack>
 
         {(personOpSummary?.edits > 0 ||
           personOpSummary?.adds > 0 ||
@@ -253,7 +298,7 @@ export default function CommitModal({
 
         {hasErrors && (
           <Alert color="red" title="Some changes failed to save">
-            Failed rows are highlighted above. Fix the issue or retry — only
+            Failed contacts are highlighted above. Fix the issue or retry — only
             failed edits remain in the queue.
           </Alert>
         )}
@@ -272,6 +317,55 @@ export default function CommitModal({
         </Group>
       </Stack>
     </Modal>
+  )
+}
+
+function FieldRow({ change }) {
+  return (
+    <Group gap={8} py={1} wrap="nowrap">
+      <Text size="xs" c="dimmed" style={{ minWidth: 100, flexShrink: 0 }}>
+        {change.field}
+      </Text>
+      {change.original ? (
+        <>
+          <Text
+            size="xs"
+            c="dimmed"
+            style={{
+              maxWidth: 180,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {change.original}
+          </Text>
+          <Text size="xs" c="dimmed">
+            →
+          </Text>
+        </>
+      ) : (
+        <Text size="xs" c="dimmed">
+          →
+        </Text>
+      )}
+      <Text
+        size="xs"
+        fw={500}
+        style={{
+          maxWidth: 220,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {change.newValue || (
+          <Text span c="dimmed" fs="italic">
+            empty
+          </Text>
+        )}
+      </Text>
+    </Group>
   )
 }
 
