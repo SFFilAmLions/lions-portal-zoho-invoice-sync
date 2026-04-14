@@ -1,3 +1,9 @@
+# [1.12.0](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/compare/v1.11.0...v1.12.0) (2026-04-14)
+
+### Features
+
+- contact detail panel, minimized columns, CSV derived rules, and grouped commit modal ([#65](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/65)) ([#66](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/66)) ([66a6273](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/commit/66a6273c229883d4220d83c6af9eb751742b06bc))
+
 # [1.11.0](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/compare/v1.10.0...v1.11.0) (2026-04-11)
 
 ### Features
