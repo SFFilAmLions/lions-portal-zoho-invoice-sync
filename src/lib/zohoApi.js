@@ -183,6 +183,106 @@ export async function deleteContactPerson(
 }
 
 /**
+ * Build a full Zoho contact payload for PUT requests.
+ * Zoho does not support PATCH — the full object must be sent.
+ *
+ * dirtyFields key mapping:
+ *   address         → billing_address.address  (street)
+ *   billing_city    → billing_address.city
+ *   billing_state   → billing_address.state
+ *   billing_zip     → billing_address.zip
+ *   billing_country → billing_address.country
+ *   cf_*            → custom_fields array entry
+ *   all others      → top-level contact field
+ */
+export function buildPayload(original, dirtyFields) {
+  const subType =
+    dirtyFields.customer_sub_type ?? original.customer_sub_type ?? 'individual'
+  const first = dirtyFields.first_name ?? original.first_name ?? ''
+  const last = dirtyFields.last_name ?? original.last_name ?? ''
+  const companyName =
+    dirtyFields.company_name ??
+    original.company_name ??
+    (original.customer_sub_type === 'business' ? original.contact_name : '')
+
+  const computedName =
+    subType === 'business'
+      ? companyName || `${first} ${last}`.trim()
+      : `${first} ${last}`.trim()
+
+  const payload = {
+    contact_name: computedName || original.contact_name || '',
+    customer_sub_type: subType,
+    company_name: companyName,
+    first_name: first,
+    last_name: last,
+    email: dirtyFields.email ?? original.email ?? '',
+    phone: dirtyFields.phone ?? original.phone ?? '',
+    mobile: dirtyFields.mobile ?? original.mobile ?? '',
+    billing_address: { ...(original.billing_address ?? {}) },
+    custom_fields: [...(original.custom_fields ?? [])],
+  }
+
+  for (const [field, value] of Object.entries(dirtyFields)) {
+    if (
+      ['first_name', 'last_name', 'company_name', 'customer_sub_type'].includes(
+        field
+      )
+    ) {
+      // already handled above
+    } else if (field === 'address') {
+      payload.billing_address.address = value
+    } else if (field === 'billing_city') {
+      payload.billing_address.city = value
+    } else if (field === 'billing_state') {
+      payload.billing_address.state = value
+    } else if (field === 'billing_zip') {
+      payload.billing_address.zip = value
+    } else if (field === 'billing_country') {
+      payload.billing_address.country = value
+    } else if (field.startsWith('cf_')) {
+      const idx = payload.custom_fields.findIndex((f) => f.api_name === field)
+      if (idx >= 0) {
+        payload.custom_fields[idx] = { ...payload.custom_fields[idx], value }
+      } else {
+        payload.custom_fields.push({ api_name: field, value })
+      }
+    } else {
+      payload[field] = value
+    }
+  }
+
+  return payload
+}
+
+/**
+ * Fetch all contacts across all pages (for diff matching).
+ * Uses perPage=200 to minimize round trips.
+ */
+export async function fetchAllContacts(accessToken, orgId, region) {
+  const all = []
+  let page = 1
+  let hasMore = true
+
+  while (hasMore) {
+    const { contacts, page_context } = await fetchContacts(
+      accessToken,
+      orgId,
+      region,
+      {
+        page,
+        perPage: 200,
+      }
+    )
+    all.push(...contacts)
+    hasMore = page_context?.has_more_page ?? false
+    page += 1
+  }
+
+  return all
+}
+
+/**
  * Update a single contact via PUT.
  * Zoho requires the full contact payload — partial updates are not supported.
  */
