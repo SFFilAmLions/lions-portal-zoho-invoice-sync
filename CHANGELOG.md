@@ -1,3 +1,9 @@
+# [1.13.0](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/compare/v1.12.0...v1.13.0) (2026-07-23)
+
+### Features
+
+- replace table UI with 5-step dues management wizard ([#69](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/69)) ([55376df](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/commit/55376dfd309e6b487bdb5878e0cf841569f8217a))
+
 # [1.12.0](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/compare/v1.11.0...v1.12.0) (2026-04-14)
 
 ### Features
