@@ -168,12 +168,12 @@ export default function MembersListStep({ onComplete }) {
         onDragLeave={() => setDragging(false)}
         onClick={() => fileInputRef.current?.click()}
         style={{
-          border: `2px dashed ${dragging ? '#228be6' : '#ced4da'}`,
+          border: `2px dashed ${dragging ? 'var(--mantine-color-blue-6)' : 'var(--mantine-color-gray-4)'}`,
           borderRadius: 8,
           padding: 40,
           textAlign: 'center',
           cursor: 'pointer',
-          background: dragging ? '#e7f5ff' : undefined,
+          background: dragging ? 'var(--mantine-color-blue-0)' : undefined,
           transition: 'border-color 0.15s, background 0.15s',
         }}
       >
