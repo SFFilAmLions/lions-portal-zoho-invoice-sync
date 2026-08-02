@@ -8,14 +8,12 @@ import {
   Title,
 } from '@mantine/core'
 import { useZohoAuth } from '../hooks/useZohoAuth.jsx'
+import { MEMBERS_CACHE_KEY, AUTH_RETURN_KEY } from '../lib/constants.js'
 import MembersListStep from './MembersListStep.jsx'
 import ConnectZohoStep from './ConnectZohoStep.jsx'
 import SyncContactsStep from './SyncContactsStep.jsx'
 import InvoiceStatusStep from './InvoiceStatusStep.jsx'
 import AnnualDuesStep from './AnnualDuesStep.jsx'
-
-export const MEMBERS_CACHE_KEY = 'lci-members-cache'
-const AUTH_RETURN_KEY = 'wizard_returning_from_auth'
 
 const STEP_LABELS = [
   { label: 'Members List', description: 'Upload LCI roster' },
