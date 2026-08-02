@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import {
   Alert,
+  Anchor,
   Badge,
   Box,
   Button,
@@ -134,8 +135,22 @@ export default function MembersListStep({ onComplete }) {
     <Stack gap="lg" maw={640} mx="auto" mt="xl">
       <Title order={2}>Members List</Title>
       <Text c="dimmed">
-        Upload your Lions International member roster from MyLCI, or reuse a
-        previously uploaded list.
+        Upload your Lions International member roster, or reuse a previously
+        uploaded list. To export:{' '}
+        <Anchor
+          href="https://mylci.lionsclubs.org"
+          target="_blank"
+          rel="noopener noreferrer"
+          size="sm"
+        >
+          log in to Lions Portal
+        </Anchor>
+        , then go to{' '}
+        <strong>
+          My Club → Data Export → Member Detail Information → Export → Details
+          Only → Comma Delimited .csv
+        </strong>
+        .
       </Text>
 
       {cache && (
@@ -189,7 +204,8 @@ export default function MembersListStep({ onComplete }) {
         </Text>
         <Text>Drop your LCI export here, or click to browse</Text>
         <Text size="xs" c="dimmed" mt={4}>
-          Export from MyLCI → Reports → Member List → Download as CSV
+          My Club → Data Export → Member Detail Information → Export → Details
+          Only → Comma Delimited .csv
         </Text>
       </Box>
 
