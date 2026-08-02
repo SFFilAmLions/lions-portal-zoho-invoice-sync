@@ -10,7 +10,7 @@ import {
   Text,
   Title,
 } from '@mantine/core'
-import { MEMBERS_CACHE_KEY } from './WizardShell.jsx'
+import { MEMBERS_CACHE_KEY } from '../lib/constants.js'
 
 const CACHE_KEY = MEMBERS_CACHE_KEY
 
