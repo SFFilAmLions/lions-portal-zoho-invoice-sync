@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import {
   Alert,
+  Anchor,
   Badge,
   Box,
   Button,
@@ -15,18 +16,17 @@ import { MEMBERS_CACHE_KEY } from '../lib/constants.js'
 const CACHE_KEY = MEMBERS_CACHE_KEY
 
 const LCI_FIELD_MAP = {
-  'Member ID': 'cf_member_id',
-  'First Name': 'first_name',
-  'Last Name': 'last_name',
-  Email: 'email',
-  Phone: 'phone',
-  'Cell Phone': 'mobile',
-  'Address 1': 'address',
-  City: 'billing_city',
-  'State/Province': 'billing_state',
-  'Postal Code': 'billing_zip',
-  Country: 'billing_country',
-  'Member Type': 'cf_member_type',
+  'Contact: Member ID': 'cf_member_id',
+  'Contact: First Name': 'first_name',
+  'Contact: Last Name': 'last_name',
+  'Contact: Preferred Email': 'email',
+  'Contact: Mobile': 'mobile',
+  'Contact: Mailing Address Line 1': 'address',
+  'Contact: Mailing City': 'billing_city',
+  'Contact: Mailing State/Province': 'billing_state',
+  'Contact: Mailing Zip/Postal Code': 'billing_zip',
+  'Contact: Mailing Country': 'billing_country',
+  'Membership Type': 'cf_member_type',
 }
 
 function parseCsvLine(line) {
@@ -72,7 +72,7 @@ function parseLciCsv(text, fileName) {
   const hasMemberId = rows.some((r) => r.cf_member_id)
   if (!hasMemberId) {
     throw new Error(
-      "Column 'Member ID' not found — is this an LCI export? " +
+      "Column 'Contact: Member ID' not found — is this a Member Detail Information export from Lion Portal? " +
         `Detected headers: ${headers.slice(0, 5).join(', ')}…`
     )
   }
@@ -134,8 +134,22 @@ export default function MembersListStep({ onComplete }) {
     <Stack gap="lg" maw={640} mx="auto" mt="xl">
       <Title order={2}>Members List</Title>
       <Text c="dimmed">
-        Upload your Lions International member roster from MyLCI, or reuse a
-        previously uploaded list.
+        Upload your Lions International member roster, or reuse a previously
+        uploaded list. To export:{' '}
+        <Anchor
+          href="https://mylci.lionsclubs.org"
+          target="_blank"
+          rel="noopener noreferrer"
+          size="sm"
+        >
+          log in to Lions Portal
+        </Anchor>
+        , then go to{' '}
+        <strong>
+          My Club → Data Export → Member Detail Information → Export → Details
+          Only → Comma Delimited .csv
+        </strong>
+        .
       </Text>
 
       {cache && (
@@ -189,7 +203,8 @@ export default function MembersListStep({ onComplete }) {
         </Text>
         <Text>Drop your LCI export here, or click to browse</Text>
         <Text size="xs" c="dimmed" mt={4}>
-          Export from MyLCI → Reports → Member List → Download as CSV
+          My Club → Data Export → Member Detail Information → Export → Details
+          Only → Comma Delimited .csv
         </Text>
       </Box>
 
