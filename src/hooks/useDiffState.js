@@ -2,8 +2,12 @@ import { useMemo, useState } from 'react'
 
 const DIFF_FIELDS = [
   { key: 'email', label: 'Email', zohoPath: (c) => c.email },
-  { key: 'phone', label: 'Phone', zohoPath: (c) => c.phone },
-  { key: 'mobile', label: 'Mobile', zohoPath: (c) => c.mobile },
+  {
+    key: 'mobile',
+    label: 'Mobile',
+    zohoPath: (c) => c.mobile,
+    normalize: normPhone,
+  },
   {
     key: 'address',
     label: 'Street',
@@ -19,7 +23,12 @@ const DIFF_FIELDS = [
     label: 'State',
     zohoPath: (c) => c.billing_address?.state,
   },
-  { key: 'billing_zip', label: 'Zip', zohoPath: (c) => c.billing_address?.zip },
+  {
+    key: 'billing_zip',
+    label: 'Zip',
+    zohoPath: (c) => c.billing_address?.zip,
+    normalize: normZip,
+  },
   {
     key: 'billing_country',
     label: 'Country',
@@ -35,6 +44,15 @@ const DIFF_FIELDS = [
 
 function norm(val) {
   return (val ?? '').toString().trim().toLowerCase()
+}
+
+function normPhone(val) {
+  const digits = (val ?? '').replace(/\D/g, '')
+  return digits.length === 11 && digits[0] === '1' ? digits.slice(1) : digits
+}
+
+function normZip(val) {
+  return (val ?? '').trim().replace(/^(\d{5})[- ]?\d*$/, '$1')
 }
 
 function matchContact(csvRow, zohoContacts) {
@@ -58,10 +76,10 @@ function matchContact(csvRow, zohoContacts) {
 }
 
 function computeDiffs(csvRow, contact) {
-  return DIFF_FIELDS.flatMap(({ key, label, zohoPath }) => {
+  return DIFF_FIELDS.flatMap(({ key, label, zohoPath, normalize = norm }) => {
     const csvValue = (csvRow[key] ?? '').toString().trim()
     const zohoValue = (zohoPath(contact) ?? '').toString().trim()
-    if (norm(csvValue) === norm(zohoValue)) return []
+    if (normalize(csvValue) === normalize(zohoValue)) return []
     return [
       {
         id: `${contact.contact_id}__${key}`,
