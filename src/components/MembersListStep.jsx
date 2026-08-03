@@ -19,14 +19,13 @@ const LCI_FIELD_MAP = {
   'Contact: Member ID': 'cf_member_id',
   'Contact: First Name': 'first_name',
   'Contact: Last Name': 'last_name',
-  'Contact: Preferred Email': 'email',
   'Contact: Mobile': 'mobile',
   'Contact: Mailing Address Line 1': 'address',
   'Contact: Mailing City': 'billing_city',
   'Contact: Mailing State/Province': 'billing_state',
   'Contact: Mailing Zip/Postal Code': 'billing_zip',
   'Contact: Mailing Country': 'billing_country',
-  'Membership Type': 'cf_member_type',
+  'Membership Full Type': 'cf_member_type',
 }
 
 function parseCsvLine(line) {
@@ -65,6 +64,18 @@ function parseLciCsv(text, fileName) {
       for (const [lciCol, zohoField] of Object.entries(LCI_FIELD_MAP)) {
         if (raw[lciCol] !== undefined) mapped[zohoField] = raw[lciCol]
       }
+      // Resolve preferred email: the "Contact: Preferred Email" column is a label
+      // (Personal/Work/Alternate), not the address itself
+      const pref = (raw['Contact: Preferred Email'] ?? '').toLowerCase()
+      mapped.email =
+        (pref === 'work'
+          ? raw['Contact: Work Email']
+          : pref === 'alternate'
+            ? raw['Contact: Alternate Email']
+            : raw['Contact: Personal Email']) ||
+        raw['Contact: Personal Email'] ||
+        raw['Contact: Work Email'] ||
+        ''
       return mapped
     })
     .filter((row) => Object.values(row).some(Boolean)) // skip blank rows
