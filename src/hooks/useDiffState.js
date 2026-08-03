@@ -79,6 +79,7 @@ function computeDiffs(csvRow, contact) {
   return DIFF_FIELDS.flatMap(({ key, label, zohoPath, normalize = norm }) => {
     const csvValue = (csvRow[key] ?? '').toString().trim()
     const zohoValue = (zohoPath(contact) ?? '').toString().trim()
+    if (!csvValue) return [] // don't offer to blank out existing Zoho data
     if (normalize(csvValue) === normalize(zohoValue)) return []
     return [
       {
