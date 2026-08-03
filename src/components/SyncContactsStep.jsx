@@ -19,7 +19,7 @@ import { useZohoAuth } from '../hooks/useZohoAuth.jsx'
 import { useDiffState } from '../hooks/useDiffState.js'
 import {
   buildPayload,
-  fetchAllContacts,
+  fetchAllContactsWithDetails,
   updateContact,
 } from '../lib/zohoApi.js'
 
@@ -54,7 +54,7 @@ export default function SyncContactsStep({
 
   useEffect(() => {
     if (!accessToken || !effectiveOrgId || !region) return
-    fetchAllContacts(accessToken, effectiveOrgId, region)
+    fetchAllContactsWithDetails(accessToken, effectiveOrgId, region)
       .then(setZohoContacts)
       .catch((e) => setLoadError(e.message))
   }, [accessToken, effectiveOrgId, region])
@@ -99,7 +99,7 @@ export default function SyncContactsStep({
     return (
       <Stack align="center" mt="xl" gap="md">
         <Loader />
-        <Text>Matching members to Zoho contacts…</Text>
+        <Text>Loading Zoho contacts…</Text>
       </Stack>
     )
   }
