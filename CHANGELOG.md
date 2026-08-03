@@ -1,3 +1,9 @@
+## [1.13.1](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/compare/v1.13.0...v1.13.1) (2026-08-03)
+
+### Bug Fixes
+
+- break circular dep between WizardShell and MembersListStep via constants.js ([#70](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/70)) ([bad9761](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/commit/bad976134329c2075773600c3ae1e025cab72950))
+
 # [1.13.0](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/compare/v1.12.0...v1.13.0) (2026-07-23)
 
 ### Features
