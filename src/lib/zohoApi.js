@@ -283,6 +283,49 @@ export async function fetchAllContacts(accessToken, orgId, region) {
 }
 
 /**
+ * Fetch a single contact's full detail (includes billing_address, which the
+ * list endpoint omits).
+ */
+async function fetchContactDetail(accessToken, orgId, region, contactId) {
+  const url = `${BASE_INVOICE(region)}/contacts/${contactId}?organization_id=${orgId}`
+  const res = await fetch(url, {
+    headers: { Authorization: `Zoho-oauthtoken ${accessToken}` },
+  })
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(
+      `fetchContactDetail(${contactId}) failed (${res.status}): ${text}`
+    )
+  }
+  const data = await res.json()
+  return data.contact
+}
+
+/**
+ * Fetch all contacts with full details (including billing_address).
+ * The list endpoint omits billing_address, so we fetch individual details
+ * in parallel batches after getting the list.
+ */
+export async function fetchAllContactsWithDetails(accessToken, orgId, region) {
+  const contacts = await fetchAllContacts(accessToken, orgId, region)
+
+  const BATCH = 10
+  const enriched = []
+  for (let i = 0; i < contacts.length; i += BATCH) {
+    const batch = contacts.slice(i, i + BATCH)
+    const details = await Promise.all(
+      batch.map((c) =>
+        fetchContactDetail(accessToken, orgId, region, c.contact_id).catch(
+          () => c
+        )
+      )
+    )
+    enriched.push(...details)
+  }
+  return enriched
+}
+
+/**
  * Update a single contact via PUT.
  * Zoho requires the full contact payload — partial updates are not supported.
  */
