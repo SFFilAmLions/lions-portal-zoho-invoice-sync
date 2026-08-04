@@ -19,6 +19,7 @@ import { useZohoAuth } from '../hooks/useZohoAuth.jsx'
 import { useDiffState } from '../hooks/useDiffState.js'
 import {
   buildPayload,
+  createContact,
   fetchAllContactsWithDetails,
   updateContact,
 } from '../lib/zohoApi.js'
@@ -84,6 +85,20 @@ export default function SyncContactsStep({
           contact.contact_id,
           payload
         )
+        log.push({ name, status: 'ok' })
+      } catch (e) {
+        log.push({ name, status: 'error', message: e.message })
+      }
+      setCommitLog([...log])
+    }
+
+    // Create new contacts for selected unmatched members
+    for (const csvRow of unmatched.filter((r) =>
+      selectedUnmatched.has(r.cf_member_id)
+    )) {
+      const name = `${csvRow.first_name ?? ''} ${csvRow.last_name ?? ''}`.trim()
+      try {
+        await createContact(accessToken, effectiveOrgId, region, csvRow)
         log.push({ name, status: 'ok' })
       } catch (e) {
         log.push({ name, status: 'error', message: e.message })

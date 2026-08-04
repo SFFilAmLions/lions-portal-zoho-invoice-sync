@@ -356,3 +356,50 @@ export async function updateContact(
 
   return res.json()
 }
+
+/**
+ * Create a new contact from an LCI CSV row.
+ */
+export async function createContact(accessToken, orgId, region, csvRow) {
+  const url = `${BASE_INVOICE(region)}/contacts?organization_id=${orgId}`
+  const name = `${csvRow.first_name ?? ''} ${csvRow.last_name ?? ''}`.trim()
+
+  const payload = {
+    contact_name: name,
+    first_name: csvRow.first_name ?? '',
+    last_name: csvRow.last_name ?? '',
+    email: csvRow.email ?? '',
+    mobile: csvRow.mobile ?? '',
+    billing_address: {
+      address: csvRow.address ?? '',
+      city: csvRow.billing_city ?? '',
+      state: csvRow.billing_state ?? '',
+      zip: csvRow.billing_zip ?? '',
+      country: csvRow.billing_country ?? '',
+    },
+    custom_fields: [
+      ...(csvRow.cf_member_id
+        ? [{ api_name: 'cf_member_id', value: csvRow.cf_member_id }]
+        : []),
+      ...(csvRow.cf_member_type
+        ? [{ api_name: 'cf_member_type', value: csvRow.cf_member_type }]
+        : []),
+    ],
+  }
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Zoho-oauthtoken ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  })
+
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(`createContact(${name}) failed (${res.status}): ${text}`)
+  }
+
+  return res.json()
+}
