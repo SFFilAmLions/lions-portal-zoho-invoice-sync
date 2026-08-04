@@ -1,3 +1,11 @@
+## [1.13.2](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/compare/v1.13.1...v1.13.2) (2026-08-04)
+
+### Bug Fixes
+
+- fetch individual contact details to get billing_address ([#73](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/73)) ([6c9ab5a](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/commit/6c9ab5a8077c5c553869cbf0282bd534c116a110))
+- normalize contact sync data to reduce spurious diffs ([#72](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/72)) ([a235c94](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/commit/a235c9488bfc6084b948cd4ec13eb7ef2bafff9d))
+- skip diffs where LCI value is empty to avoid blanking Zoho data ([#75](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/75)) ([e9ecfd0](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/commit/e9ecfd0a04e55e064dff7305f9560f0898a3400e))
+
 ## [1.13.1](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/compare/v1.13.0...v1.13.1) (2026-08-03)
 
 ### Bug Fixes
