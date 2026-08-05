@@ -1,3 +1,9 @@
+## [1.13.3](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/compare/v1.13.2...v1.13.3) (2026-08-05)
+
+### Bug Fixes
+
+- actually create new Zoho contacts for checked unmatched members ([#76](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/issues/76)) ([bf0faa2](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/commit/bf0faa21b9893ee9b25a621fb02dd06607654768))
+
 ## [1.13.2](https://github.com/SFFilAmLions/lions-portal-zoho-invoice-sync/compare/v1.13.1...v1.13.2) (2026-08-04)
 
 ### Bug Fixes
